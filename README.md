@@ -1,18 +1,35 @@
 # sbt-trickle
 
-TODO description
+Trickles down updated dependencies across repositories through pull requests,
+minimizing builds and maximizing parallelism.
+
+It requires that all projects be running this plugin, and a location where the
+global state can be recorded. A git connector is provided to record that state
+on a remote git repository.
 
 ## Usage
 
+On `project/plugins.sbt`:
+
 ```sbt
-// ...if using bintray
-// resolvers += Resolver.bintrayRepo("dcsobral", "maven")
+resolvers += Resolver.bintrayRepo("dcsobral", "maven")
 
-libraryDependencies += "com.dcsobral" %% "sbt-trickle" % "<version>"
+addSbtPlugin("com.slamdata" % "sbt-trickle" % <version>)
 ```
 
-Published for Scala 2.12.10.
+On your `build.sbt`:
 
-```scala
-import trickle._
+
+```sbt
+// Configure shared repository
+// Configure dependency update method
+// Configure PR creation
 ```
+
+Published for SBT 1.3.8.
+
+## Trivia
+
+The name was inspired by the Mammoth Terraces on Yellowstone National Park, but
+sbt-terraces just didn't evoke the right image.
+
