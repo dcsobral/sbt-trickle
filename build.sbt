@@ -16,11 +16,13 @@
 
 name := "sbt-trickle"
 
-ThisBuild / baseVersion := "0.1"
+ThisBuild / baseVersion := "0.0.1"
 
 ThisBuild / organization := "com.dcsobral"
 ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
+
+enablePlugins(SbtPlugin)
 
 libraryDependencies += "org.scala-graph" %% "graph-core" % "1.13.1"
 
