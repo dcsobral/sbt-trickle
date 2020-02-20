@@ -1,1 +1,5 @@
 addSbtPlugin("com.codecommit" % "sbt-spiewak-bintray" % "0.13.0")
+addSbtPlugin("com.dwijnand"      % "sbt-travisci" % "1.2.0")
+addSbtPlugin("com.typesafe.sbt"  % "sbt-git"         % "1.0.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header"   % "5.3.1")
+addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.3")

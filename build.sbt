@@ -17,12 +17,16 @@
 name := "sbt-trickle"
 
 ThisBuild / baseVersion := "0.0.1"
-
 ThisBuild / organization := "com.dcsobral"
 ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
+ThisBuild / bintrayVcsUrl := Some("git@github.com:dcsobral/sbt-trickle.git")
 
 enablePlugins(SbtPlugin)
 
-libraryDependencies += "org.scala-graph" %% "graph-core" % "1.13.1"
+
+libraryDependencies ++= Seq(
+  "org.scala-graph" %% "graph-core" % "1.13.1",
+  "org.eclipse.jgit" % "org.eclipse.jgit" % "5.6.1.202002131546-r",
+)
 
