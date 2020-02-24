@@ -52,15 +52,26 @@ object TrickleGitDB {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
 
-    if (!(isValidRepository(dir))) {
+    if (!isValidRepository(dir)) {
       cloneRepository(remote, branch, dir)
     } else if (branch != Using.file(Git.open(_, FS.DETECTED))(dir)(_.getRepository.getBranch)) {
       IO.delete(dir)
       IO.createDirectory(dir)
       cloneRepository(remote, branch, dir)
+    } else {
+      Using.file(Git.open(_, FS.DETECTED))(dir)(pullRemote)
     }
 
     dir
+  }
+
+  private def pullRemote(git: Git): Unit = {
+    val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).call()
+    if (!pullResult.isSuccessful) {
+      val messages = getPullErrorMessages(git, pullResult)
+      git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
+      sys.error(s"Unable to sync with remote: $messages")
+    }
   }
 
   private def cloneRepository(remote: URL, branch: String, dir: File) = {
@@ -157,12 +168,7 @@ object TrickleGitDB {
   private def tryUpdateRemote(git: Git, commit: () => Unit, originalRef: String, retries: Int): Unit = {
     git.reset().setMode(ResetCommand.ResetType.HARD).setRef(originalRef).call()
 
-    val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).call()
-    if (!pullResult.isSuccessful) {
-      val messages = getPullErrorMessages(git, pullResult)
-      git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
-      sys.error(s"Unable to sync with remote: $messages")
-    }
+    pullRemote(git)
 
     commit()
 
