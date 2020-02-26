@@ -27,6 +27,7 @@ enablePlugins(SbtPlugin)
 
 libraryDependencies ++= Seq(
   "org.scala-graph" %% "graph-core" % "1.13.1",
+  "org.scala-graph" %% "graph-dot" % "1.13.0",
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.6.1.202002131546-r",
 )
 

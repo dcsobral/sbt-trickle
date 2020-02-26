@@ -29,7 +29,7 @@ object TricklePlugin extends AutoPlugin {
   object autoImport {
     // Self
     val trickleRepositoryName = settingKey[String]("Repository name to be used when storing metadata")
-    val trickleRepositoryURL = settingKey[URL]("Repository URL")
+    val trickleRepositoryURL = settingKey[URL]("Repository URL") // TODO: default from repo's remote "origin"
 
     // Database
     val trickleDbURL = settingKey[URL]("Database URL")
@@ -117,18 +117,6 @@ object TricklePlugin extends AutoPlugin {
        val graph = buildGraph(metadata)
        val bumping = getBumps(graph.topotraversal).filter(p => !checkPR(p))
        bumping foreach createPR
-     }
-     trickleSelfUpdate := {
-       val db = trickleDb.value
-       val metadata = cache(db, trickleSelfMetadata.value)
-       db.push
-     }
-     trickleSelfMetadata := {
-    val dump = (modulesWithDependencies)
-      .all(ScopeFilter(inAnyProject, tasks = inTasks(dumpProject)))
-      .value
-    val map = dump.groupBy(_.id)
-      .mapValues(v => v.head)
      }
 */
 

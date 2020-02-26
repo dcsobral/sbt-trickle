@@ -40,6 +40,7 @@ import sbt.util.FileBasedStore
 
 import sbttrickle.Metadata
 
+/** Provides methods to implement trickle's database through a git repository. */
 object TrickleGitDB {
   val PUSH_RETRY_NUMBER = 3
 
