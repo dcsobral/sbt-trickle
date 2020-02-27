@@ -35,10 +35,9 @@ import scala.util.control.NonFatal
 
 import sbt.{URL => _, _}
 import sbt.io.Using
-import sbt.util.CacheImplicits._
-import sbt.util.FileBasedStore
+import sbt.util.{CacheStore, FileBasedStore}
 
-import sbttrickle.Metadata
+import sbttrickle.metadata.RepositoryMetadata
 
 /** Provides methods to implement trickle's database through a git repository. */
 object TrickleGitDB {
@@ -48,7 +47,14 @@ object TrickleGitDB {
   def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
 
-  /** Returns path to repository, cloning it first if necessary. Does not fetch remote if repository already exists. */
+  /**
+   * Pull or clone remote repository.
+   *
+   * @param base Directory containing the repository (something under `target`)
+   * @param remote URL/URI of the remote (eg, "git@github.com:user/repo" or "https://github.com/user/repo")
+   * @param branch Branch that will be checked out; only that branch will be fetched.
+   * @return Path to metadata
+   */
   def getRepository(base: File, remote: String, branch: String): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
@@ -67,6 +73,45 @@ object TrickleGitDB {
     }
 
     dir
+  }
+
+  /**
+   * Reads all metadata from repository.
+   *
+   * @param metadataRepository Repository directory, as in the return value of `getRepository`
+   */
+  def getBuildMetadata(metadataRepository: File, scalaVersion: String): Seq[RepositoryMetadata] = {
+    val dir = metadataRepository / s"scala-$scalaVersion"
+    val metadata = dir
+      .listFiles(_.ext == "json")
+      .map(CacheStore(_).read[RepositoryMetadata])
+    metadata
+  }
+
+  /**
+   * Save metadata to repository and update remote if changed.
+   *
+   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param commitMsg Commit message in the git format
+   * @return File where metadata was saved
+   */
+  def updateSelf(repositoryMetadata: RepositoryMetadata, scalaBinaryVersion: String, repository: File, commitMsg: String): File = {
+    val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
+    val file: File = repository / relativeName
+    val dir = file.getParentFile
+    IO.createDirectory(dir)
+
+    val store = getStore(file)
+
+    Using.file(Git.open(_, FS.DETECTED)) (repository) { git: Git =>
+      implicit val remote: URIish = getRemoteURIish(git.getRepository)
+      updateIfModified(git, commitMsg){ () =>
+        store.write(repositoryMetadata)
+        modifyIndex(git, relativeName)
+      }
+    }
+
+    file
   }
 
   private def pullRemote(git: Git)(implicit remote: URIish): Unit = {
@@ -100,26 +145,6 @@ object TrickleGitDB {
   private def wasClonedSuccessfully(dir: sbt.File): Boolean = {
     val repo = new FileRepositoryBuilder().setWorkTree(dir).build()
     repo.getRefDatabase.hasRefs
-  }
-
-  /** Save metadata to repository and update remote if changed. */
-  def updateSelf(name: String, locator: String, scalaBinaryVersion: String, repo: File, commitMsg: String, data: Seq[Metadata]): File = {
-    val fileName = s"scala-$scalaBinaryVersion/$name.json"
-    val file: File = repo / fileName
-    val dir = file.getParentFile
-    IO.createDirectory(dir)
-
-    val store = getStore(file)
-
-    Using.file(Git.open(_, FS.DETECTED)) (repo) { git: Git =>
-      implicit val remote: URIish = getRemoteURIish(git.getRepository)
-      updateIfModified(git, commitMsg){ () =>
-        store.write((name, locator, data))
-        modifyIndex(git, fileName)
-      }
-    }
-
-    file
   }
 
   private def getRemoteURIish(repository: Repository): URIish = {
@@ -243,7 +268,7 @@ object TrickleGitDB {
     def configureAuthentication(): TC = {
       cmd.setTransportConfigCallback(transportConfigCallback(remoteURI))
       if (remoteURI.getScheme == "https") {
-        for (password <- Option(remoteURI.getPass))
+        for (password <- Option(remoteURI.getPass).orElse(sys.env.get("GITHUB_TOKEN")))
           cmd.setCredentialsProvider( new UsernamePasswordCredentialsProvider(remoteURI.getUser, password))
       }
       cmd
