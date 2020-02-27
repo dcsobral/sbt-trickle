@@ -16,12 +16,9 @@
 
 package sbttrickle
 
-import java.net.URL
-
-import sbt._
+import sbt.{Def, _}
 import sbt.Def.Initialize
 import sbt.Keys._
-import sbt.util.CacheImplicits._
 
 import sbttrickle.git.TrickleGitDB
 
@@ -29,10 +26,10 @@ object TricklePlugin extends AutoPlugin {
   object autoImport {
     // Self
     val trickleRepositoryName = settingKey[String]("Repository name to be used when storing metadata")
-    val trickleRepositoryURL = settingKey[URL]("Repository URL") // TODO: default from repo's remote "origin"
+    val trickleRepositoryURI = settingKey[String]("This repository locator") // TODO: default from the repo's remote "origin"
 
     // Database
-    val trickleDbURL = settingKey[URL]("Database URL")
+    val trickleDbURI = settingKey[String]("Metadata database locator")
     val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
 
     // Git Database
@@ -63,7 +60,7 @@ object TricklePlugin extends AutoPlugin {
     lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
       // Self
       trickleRepositoryName := (baseDirectory in ThisBuild).value.name,
-      trickleRepositoryURL := (baseDirectory in ThisBuild).value.asURL,
+      trickleRepositoryURI := (baseDirectory in ThisBuild).value.getAbsolutePath,
 
       // Git Database
       trickleGitBranch := "master",
@@ -78,12 +75,12 @@ object TricklePlugin extends AutoPlugin {
   override def requires = empty
   override def trigger = allRequirements
 
-  override lazy val buildSettings = baseBuildSettings
-  override lazy val projectSettings = baseProjectSettings
+  override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
+  override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
   lazy val trickleGitUpdateSelfTask: Initialize[Task[File]] = Def.task {
     TrickleGitDB.updateSelf(trickleRepositoryName.value,
-      trickleRepositoryURL.value,
+      trickleRepositoryURI.value,
       scalaBinaryVersion.value,
       trickleGitDbRepository.value,
       trickleGitUpdateMessage.value,
@@ -91,7 +88,7 @@ object TricklePlugin extends AutoPlugin {
   }
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
-    val url = trickleDbURL.?.value.getOrElse(sys.error("trickleDbURL must be set"))
+    val url = trickleDbURI.?.value.getOrElse(sys.error("trickleDbURL must be set"))
     val trickleCache = (LocalRootProject / target in trickleGitDbRepository).value / "trickle"
     TrickleGitDB.getRepository(trickleCache, url, trickleGitBranch.value)
   }
@@ -115,7 +112,7 @@ object TricklePlugin extends AutoPlugin {
      trickleReconcile := {
        val metadata = trickleSelfUpdate.value andThen trickleFetchTopo.value
        val graph = buildGraph(metadata)
-       val bumping = getBumps(graph.topotraversal).filter(p => !checkPR(p))
+       val bumping = getBumps(graph.topoTraversal).filter(p => !checkPR(p))
        bumping foreach createPR
      }
 */
