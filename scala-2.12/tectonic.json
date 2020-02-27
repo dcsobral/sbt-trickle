@@ -1,0 +1,924 @@
+["tectonic", "https://github.com/slamdata/tectonic", [{
+  "id": "benchmarks",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "tectonic-benchmarks",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "pl.project13.scala",
+    "name": "sbt-jmh-extras",
+    "revision": "0.3.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.openjdk.jmh",
+    "name": "jmh-core",
+    "revision": "1.21",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.openjdk.jmh",
+    "name": "jmh-generator-bytecode",
+    "revision": "1.21",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.openjdk.jmh",
+    "name": "jmh-generator-reflection",
+    "revision": "1.21",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }, {
+    "organization": "co.fs2",
+    "name": "fs2-core",
+    "revision": "1.0.4",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "co.fs2",
+    "name": "fs2-io",
+    "revision": "1.0.4",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.http4s",
+    "name": "jawn-fs2",
+    "revision": "0.14.2",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }]
+}, {
+  "id": "root",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "root",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }]
+}, {
+  "id": "fs2",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "tectonic-fs2",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [{
+      "name": "tectonic-fs2",
+      "type": "pom",
+      "extension": "pom",
+      "configurations": [{
+        "name": "pom"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-fs2",
+      "type": "jar",
+      "extension": "jar",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-fs2",
+      "type": "src",
+      "extension": "jar",
+      "classifier": "sources",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-fs2",
+      "type": "doc",
+      "extension": "jar",
+      "classifier": "javadoc",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }, {
+    "organization": "co.fs2",
+    "name": "fs2-core",
+    "revision": "1.0.4",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }]
+}, {
+  "id": "harness",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "tectonic-harness",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }, {
+    "organization": "co.fs2",
+    "name": "fs2-io",
+    "revision": "1.0.4",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }]
+}, {
+  "id": "test",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "tectonic-test",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [{
+      "name": "tectonic-test",
+      "type": "pom",
+      "extension": "pom",
+      "configurations": [{
+        "name": "pom"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-test",
+      "type": "jar",
+      "extension": "jar",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-test",
+      "type": "src",
+      "extension": "jar",
+      "classifier": "sources",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic-test",
+      "type": "doc",
+      "extension": "jar",
+      "classifier": "javadoc",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }, {
+    "organization": "org.specs2",
+    "name": "specs2-core",
+    "revision": "4.3.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalacheck",
+    "name": "scalacheck",
+    "revision": "1.14.0",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.specs2",
+    "name": "specs2-scalacheck",
+    "revision": "4.3.6",
+    "configurations": "test",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }]
+}, {
+  "id": "core",
+  "artifact": {
+    "organization": "com.slamdata",
+    "name": "tectonic",
+    "revision": "8.0.7-d7f9260",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [{
+      "name": "tectonic",
+      "type": "pom",
+      "extension": "pom",
+      "configurations": [{
+        "name": "pom"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic",
+      "type": "jar",
+      "extension": "jar",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic",
+      "type": "src",
+      "extension": "jar",
+      "classifier": "sources",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }, {
+      "name": "tectonic",
+      "type": "doc",
+      "extension": "jar",
+      "classifier": "javadoc",
+      "configurations": [{
+        "name": "compile"
+      }],
+      "extraAttributes": {
+
+      },
+      "allowInsecureProtocol": false
+    }],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  },
+  "dependencies": [{
+    "organization": "org.scala-lang",
+    "name": "scala-library",
+    "revision": "2.12.6",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Disabled"
+    }
+  }, {
+    "organization": "org.wartremover",
+    "name": "wartremover",
+    "revision": "2.2.1",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.spire-math",
+    "name": "kind-projector",
+    "revision": "0.9.4",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }, {
+    "organization": "org.scalamacros",
+    "name": "paradise",
+    "revision": "2.1.0",
+    "configurations": "plugin->default(compile)",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Patch"
+    }
+  }, {
+    "organization": "org.typelevel",
+    "name": "cats-effect",
+    "revision": "1.3.0",
+    "isChanging": false,
+    "isTransitive": true,
+    "isForce": false,
+    "explicitArtifacts": [],
+    "inclusions": [],
+    "exclusions": [],
+    "extraAttributes": {
+
+    },
+    "crossVersion": {
+      "type": "Binary",
+      "prefix": "",
+      "suffix": ""
+    }
+  }]
+}]]
