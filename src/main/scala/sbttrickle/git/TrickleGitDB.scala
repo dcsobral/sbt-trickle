@@ -39,6 +39,9 @@ import sbt.util.{CacheStore, FileBasedStore}
 
 import sbttrickle.metadata.RepositoryMetadata
 
+// TODO: dry run mode
+// TODO: no pull mode
+// TODO: init repo task
 /** Provides methods to implement trickle's database through a git repository. */
 object TrickleGitDB {
   val PUSH_RETRY_NUMBER = 3

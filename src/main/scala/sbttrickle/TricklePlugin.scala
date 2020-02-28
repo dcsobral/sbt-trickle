@@ -16,93 +16,82 @@
 
 package sbttrickle
 
-import sbt.{Def, _}
+import sbt._
 import sbt.Def.Initialize
 import sbt.Keys._
+import sbt.plugins.JvmPlugin
 
 import sbttrickle.git._
 import sbttrickle.metadata._
 import sbttrickle.metadata.BuildTopology.Label
 
 object TricklePlugin extends AutoPlugin {
-  object autoImport {
-    // Self
-    val trickleRepositoryName = settingKey[String]("Repository name to be used when storing metadata")
-    val trickleRepositoryURI = settingKey[String]("This repository locator") // TODO: default from the repo's remote "origin"
-    val trickleSelfMetadata = taskKey[Seq[ModuleMetadata]]("Project dependency metadata")
-
-    // Database
-    val trickleDbURI = settingKey[String]("Metadata database locator")
-    val trickleFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
-    val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
-    val trickleReconcile = taskKey[Unit]("Creates pull requests to bump dependency versions")
-
-    // Git Database
-    val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
-    val trickleGitDbRepository = taskKey[File]("Trickle db git repository")
-    val trickleGitBranch = settingKey[String]("Branch containing the trickle database")
-    val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
-
-    lazy val baseProjectSettings: Seq[Def.Setting[_]] = Seq(
-      // Self
-      trickleSelfMetadata / aggregate := false,
-      trickleSelfMetadata := selfMetadataTask.value,
-
-      // Database
-      trickleFetchDb / aggregate := false,
-      trickleFetchDb := trickleGitFetchDbTask.value,
-      trickleUpdateSelf / aggregate := false,
-      trickleUpdateSelf := trickleGitUpdateSelf.value,
-      trickleReconcile / aggregate := false,
-      trickleReconcile := trickleReconcileTask.value,
-
-      // Git Database
-      trickleGitUpdateSelf / aggregate := false,
-      trickleGitUpdateSelf := trickleGitUpdateSelfTask.value,
-      trickleGitUpdateMessage / aggregate := false,
-      trickleGitUpdateMessage := trickleGitUpdateMessageTask.value,
-    )
-
-    lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
-      // Self
-      trickleRepositoryName := (baseDirectory in ThisBuild).value.name,
-      trickleRepositoryURI := (baseDirectory in ThisBuild).value.getAbsolutePath,
-
-      // Git Database
-      trickleGitBranch := "master",
-      trickleGitDbRepository / aggregate := false,
-      trickleGitDbRepository := trickleGitDbRepositoryTask.value,
-    )
-
+  object autoImport extends TrickleKeys {
   }
 
   import autoImport._
 
-  override def requires = empty
-  override def trigger = allRequirements
+  override def requires: Plugins = JvmPlugin
+  override def trigger: PluginTrigger = allRequirements
+
+  lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
+    // Self
+    trickleRepositoryName := baseDirectory.value.name,
+    trickleRepositoryURI := "",
+
+    // Git Database
+    trickleGitBranch := "master",
+    trickleGitDbRepository / aggregate := false,
+    trickleGitDbRepository := trickleGitDbRepositoryTask.value,
+  )
+
+  lazy val baseProjectSettings: Seq[Def.Setting[_]] = Seq(
+    // Self
+    trickleSelfMetadata / aggregate := false,
+    trickleSelfMetadata := selfMetadataTask.value,
+
+    // Database
+    trickleFetchDb / aggregate := false,
+    trickleFetchDb := trickleGitFetchDbTask.value,
+    trickleUpdateSelf / aggregate := false,
+    trickleUpdateSelf := trickleGitUpdateSelf.value,
+    trickleReconcile / aggregate := false,
+    trickleReconcile := trickleReconcileTask.value,
+
+    // Git Database
+    trickleGitUpdateSelf / aggregate := false,
+    trickleGitUpdateSelf := trickleGitUpdateSelfTask.value,
+    trickleGitUpdateMessage / aggregate := false,
+    trickleGitUpdateMessage := trickleGitUpdateMessageTask.value,
+  )
 
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
   override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
+  // TODO: split reconcile & update+reconcile
   lazy val trickleReconcileTask: Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
     val metadata = Def.sequential(trickleUpdateSelf, trickleFetchDb).value
+    log.info(s"Got ${metadata.size} repositories")
     val topology = BuildTopology(metadata)
     val outdated = topology.getOutdated
-    for((repository, labels) <- outdated) {
+    log.info(s"${outdated.size} repositories need updating")
+    for {
+      (repository, labels) <- outdated
+      // if isAvailable(src) && !prExists(repository)
+    } {
+      // TODO: dry-run mode
+      // create PR
       log.info(s"Update repository $repository")
-      for (Label(src, dst, _) <- labels) {
-        log.info(s"$src -> $dst")
+      for ((src, dst, rev) <- labels) {
+        log.info(s"$src:  $dst -> $rev")
       }
     }
-
-//    val outdated = topology.bumpList.filter(p => checkArtifacts(p)).filter(p => !checkPR(p))
-//    outdated foreach createPR
   }
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
-    val url = trickleDbURI.?.value.getOrElse(sys.error("trickleDbURL must be set"))
-    val trickleCache = (LocalRootProject / target in trickleGitDbRepository).value / "trickle"
+    val url = trickleDbURI.?.value.getOrElse(sys.error("trickleDbURL must be set to sync build metadata"))
+    val trickleCache = (LocalRootProject / trickleGitDbRepository / target).value / "trickle"
     TrickleGitDB.getRepository(trickleCache, url, trickleGitBranch.value)
   }
 

@@ -24,7 +24,8 @@ import scalax.collection.edge.LkDiEdge
 
 import scala.collection.immutable.HashMap
 
-import sbt._
+import sbt.{ModuleID => _, _}
+import sbt.librarymanagement.ModuleID
 
 class BuildTopology(metadata: Seq[RepositoryMetadata]) {
   import BuildTopology._, LabelImplicits._
@@ -34,7 +35,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
   type Topology = Graph[N, E]
   type RepositoryName = String
 
-  val moduleMap: HashMap[sbt.ModuleID, (RepositoryName, ModuleMetadata)] = makeModuleMap
+  val moduleMap: HashMap[ModuleID, (RepositoryName, ModuleMetadata)] = makeModuleMap
   val topology: Topology = Graph.from(vertices, edges)
   val roots: collection.Set[topology.NodeT] = topology.nodes.filter(_.inDegree == 0)
 
@@ -45,25 +46,31 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
       (dstRepository, dstModule) <- moduleMap.values
       dependency <- dstModule.dependencies
       artifact = ModuleID(dependency.organization, dependency.name, dependency.revision)
-      (srcRepository, srcModule) <- moduleMap.get(stripRevision(artifact))
+      (srcRepository, srcModule) <- moduleMap.get(keyFor(artifact))
     } yield (srcRepository ~+#> dstRepository)(
       Label(dstModule.artifact, artifact, artifact.revision == srcModule.artifact.revision)
     )
     revDeps.toSet
   }
 
-  def makeModuleMap: HashMap[sbt.ModuleID, (RepositoryName, ModuleMetadata)] = {
+  def makeModuleMap: HashMap[ModuleID, (RepositoryName, ModuleMetadata)] = {
     val allModules = for {
       repository <- metadata
       module <- repository.projectMetadata
-    } yield stripRevision(module.artifact) -> ( (repository.name, module))
+    } yield keyFor(module.artifact) -> ( (repository.name, module))
     HashMap(allModules: _*)
   }
 
-  def stripRevision(module: ModuleID): ModuleID = module.withRevision("")
+  def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
-  def getOutdated: Seq[(String, Set[Label])] = {
-    getOutdated(topology)
+  def getOutdated: Seq[(String, Set[(ModuleID, ModuleID, String)])] = {
+    getOutdated(topology).map {
+      case (repository, outdatedDependencies) =>
+        val enrichedOutdatedDependencies = outdatedDependencies.map {
+          case Label(src, dst, _) => (src, dst, moduleMap(keyFor(dst))._2.artifact.revision)
+        }
+        (repository, enrichedOutdatedDependencies)
+    }
   }
 
   def getOutdated(topology: Topology): Seq[(String, Set[Label])] = {

@@ -22,8 +22,7 @@ ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
 ThisBuild / bintrayVcsUrl := Some("git@github.com:dcsobral/sbt-trickle.git")
 
-enablePlugins(SbtPlugin)
-
+sbtPlugin := true
 
 libraryDependencies ++= Seq(
   "org.scala-graph" %% "graph-core" % "1.13.1",

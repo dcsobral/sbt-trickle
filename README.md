@@ -16,7 +16,7 @@ On `project/plugins.sbt`:
 ```sbt
 resolvers += Resolver.bintrayRepo("dcsobral", "maven")
 
-addSbtPlugin("com.slamdata" % "sbt-trickle" % <version>)
+addSbtPlugin("com.dcsobral" % "sbt-trickle" % <version>)
 ```
 
 On your `build.sbt` settings:
