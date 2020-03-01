@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Daniel Sobral
+ * Copyright 2020 Daniel Sobral
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-name := "sbt-trickle"
+package sbttrickle.git
 
-ThisBuild / baseVersion := "0.0.2"
-ThisBuild / organization := "com.dcsobral"
-ThisBuild / publishGithubUser := "dcsobral"
-ThisBuild / publishFullName := "Daniel Sobral"
-ThisBuild / bintrayVcsUrl := Some("git@github.com:dcsobral/sbt-trickle.git")
+import org.eclipse.jgit.transport.CredentialsProvider
 
-sbtPlugin := true
+case class GitConfig(options: Set[GitConfig.Options],
+                     credentialsProvider: Option[CredentialsProvider]) {
+  import GitConfig._
 
-libraryDependencies ++= Seq(
-  "org.scala-graph" %% "graph-core" % "1.13.1",
-  "org.scala-graph" %% "graph-dot" % "1.13.0",
-  "org.eclipse.jgit" % "org.eclipse.jgit" % "5.6.1.202002131546-r",
-)
+  def withDontPush: GitConfig = copy(options = options + DontPush)
+  def withDontPull: GitConfig = copy(options = options + DontPull)
+}
 
+object GitConfig {
+  sealed trait Options
+  object DontPush extends Options
+  object DontPull extends Options
+
+  def empty: GitConfig = GitConfig(Set.empty, None)
+}

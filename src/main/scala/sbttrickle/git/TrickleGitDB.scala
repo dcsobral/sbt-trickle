@@ -19,7 +19,7 @@ package sbttrickle.git
 import java.io.File
 import java.lang
 
-import org.eclipse.jgit.api.{Git, MergeCommand, PullResult, RebaseCommand, ResetCommand, TransportCommand, TransportConfigCallback}
+import org.eclipse.jgit.api.{CreateBranchCommand, Git, MergeCommand, PullResult, RebaseCommand, ResetCommand, TransportCommand, TransportConfigCallback}
 import org.eclipse.jgit.lib.{ConfigConstants, Constants, Repository, RepositoryCache}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport.{JschConfigSessionFactory, OpenSshConfig, PushResult, RemoteRefUpdate, SshTransport, Transport, URIish, UsernamePasswordCredentialsProvider}
@@ -37,11 +37,9 @@ import sbt.{URL => _, _}
 import sbt.io.Using
 import sbt.util.{CacheStore, FileBasedStore}
 
+import sbttrickle.git.GitConfig._
 import sbttrickle.metadata.RepositoryMetadata
 
-// TODO: dry run mode
-// TODO: no pull mode
-// TODO: init repo task
 /** Provides methods to implement trickle's database through a git repository. */
 object TrickleGitDB {
   val PUSH_RETRY_NUMBER = 3
@@ -49,6 +47,14 @@ object TrickleGitDB {
   /** Pretty-printed version of sbt's `CacheStore` */
   def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
+
+  /** Create repository */
+  def createRepository(base: File, remote: String, branch: String, config: GitConfig): File = {
+    val dir = base / "metadataGitRepo"
+    IO.createDirectory(dir)
+    initializeRepository(dir, branch, config)(new URIish(remote))
+    dir
+  }
 
   /**
    * Pull or clone remote repository.
@@ -58,20 +64,19 @@ object TrickleGitDB {
    * @param branch Branch that will be checked out; only that branch will be fetched.
    * @return Path to metadata
    */
-  def getRepository(base: File, remote: String, branch: String): File = {
+  def getRepository(base: File, remote: String, branch: String, config: GitConfig): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
 
     if (!isValidRepository(dir)) {
-      cloneRepository(branch, dir)(new URIish(remote))
+      initOrCloneRepository(dir, branch, config)(new URIish(remote))
     } else if (branch != Using.file(Git.open(_, FS.DETECTED))(dir)(_.getRepository.getBranch)) {
       IO.delete(dir)
       IO.createDirectory(dir)
-      cloneRepository(branch, dir)(new URIish(remote))
+      initOrCloneRepository(dir, branch, config)(new URIish(remote))
     } else {
       Using.file(Git.open(_, FS.DETECTED))(dir){ git =>
-        implicit val remote: URIish = getRemoteURIish(git.getRepository)
-        pullRemote(git)
+        pullRemote(git, config)(getRemoteURIish(git.getRepository))
       }
     }
 
@@ -98,7 +103,11 @@ object TrickleGitDB {
    * @param commitMsg Commit message in the git format
    * @return File where metadata was saved
    */
-  def updateSelf(repositoryMetadata: RepositoryMetadata, scalaBinaryVersion: String, repository: File, commitMsg: String): File = {
+  def updateSelf(repositoryMetadata: RepositoryMetadata,
+                 scalaBinaryVersion: String,
+                 repository: File,
+                 commitMsg: String,
+                 config: GitConfig): File = {
     val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
     val file: File = repository / relativeName
     val dir = file.getParentFile
@@ -108,7 +117,7 @@ object TrickleGitDB {
 
     Using.file(Git.open(_, FS.DETECTED)) (repository) { git: Git =>
       implicit val remote: URIish = getRemoteURIish(git.getRepository)
-      updateIfModified(git, commitMsg){ () =>
+      updateIfModified(git, commitMsg, config){ () =>
         store.write(repositoryMetadata)
         modifyIndex(git, relativeName)
       }
@@ -117,24 +126,49 @@ object TrickleGitDB {
     file
   }
 
-  private def pullRemote(git: Git)(implicit remote: URIish): Unit = {
-    val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).configureAuthentication().call()
-    if (!pullResult.isSuccessful) {
-      val messages = getPullErrorMessages(git, pullResult)
-      git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
-      sys.error(s"Unable to sync with remote: $messages")
+  private def pullRemote(git: Git, config: GitConfig)(implicit remote: URIish): Unit = {
+    if (!config.options(DontPull)) {
+      val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).configureAuthentication().call()
+      if (!pullResult.isSuccessful) {
+        val messages = getPullErrorMessages(git, pullResult)
+        git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
+        sys.error(s"Unable to sync with remote: $messages")
+      }
     }
   }
 
-  private def cloneRepository(branch: String, dir: File)(implicit remote: URIish) = {
-    val cloneCommand = Git.cloneRepository()
+  private def initOrCloneRepository(dir: File, branch: String, config: GitConfig)(implicit remote: URIish): Unit = {
+    if (!config.options(DontPull)) cloneRepository(dir, branch, config)
+    else initializeRepository(dir, branch, config)
+  }
+
+  private def cloneRepository(dir: File, branch: String, config: GitConfig)(implicit remote: URIish): Unit = {
+    Git.cloneRepository()
       .setDirectory(dir)
       .setCloneAllBranches(false)
       .setBranchesToClone(Seq(s"${Constants.R_HEADS}$branch").asJava)
       .setBranch(branch)
       .setURI(remote.toASCIIString)
       .configureAuthentication()
-    cloneCommand.call()
+      .call()
+      .close()
+  }
+
+  private def initializeRepository(dir: File, branch: String, config: GitConfig)(implicit remote: URIish): Unit = {
+    val git = Git.init()
+      .setDirectory(dir)
+      .call()
+    git.remoteAdd()
+      .setName(Constants.DEFAULT_REMOTE_NAME)
+      .setUri(remote)
+      .call()
+    if (branch != "master") {
+      git.checkout()
+        .setCreateBranch(true)
+        .setName(branch)
+        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+        .call()
+    }
   }
 
   private def isValidRepository(dir: sbt.File): Boolean = {
@@ -158,10 +192,11 @@ object TrickleGitDB {
   }
 
   /** Check whether the update would introduce changes and, if so, commit and push to remote. */
-  private def updateIfModified(git: Git, commitMsg: String)(prepareCommit: () => Unit)(implicit remote: URIish): Unit = {
+  private def updateIfModified(git: Git, commitMsg: String, config: GitConfig)
+                              (prepareCommit: () => Unit)(implicit remote: URIish): Unit = {
     prepareCommit()
     if (isModified(git)) {
-      commitAndPush(git){ () =>
+      commitAndPush(git, config){ () =>
         prepareCommit()
         git.commit().setMessage(commitMsg).call()
       }
@@ -190,10 +225,10 @@ object TrickleGitDB {
   /**
    * Try to commit and push changes to the remote, and reset the repository to HEAD in unsuccessful.
    */
-  private def commitAndPush(git: Git)(commit: () => Unit)(implicit remote: URIish): Unit = {
+  private def commitAndPush(git: Git, config: GitConfig)(commit: () => Unit)(implicit remote: URIish): Unit = {
     val originalRef = git.getRepository.findRef("HEAD").getObjectId.getName
     try {
-      tryUpdateRemote(git, commit, originalRef, 0)
+      tryUpdateRemote(git, commit, originalRef, config, 0)
     } catch {
       case NonFatal(ex) =>
         git.reset().setMode(ResetCommand.ResetType.HARD).setRef(originalRef).call()
@@ -205,22 +240,25 @@ object TrickleGitDB {
    * Repeats a cycle of reset / pull / commit / push until either successful or `retries` >= `PUSH_RETRY_NUMBER`.
    */
   @scala.annotation.tailrec
-  private def tryUpdateRemote(git: Git, commit: () => Unit, originalRef: String, retries: Int)(implicit remote: URIish): Unit = {
+  private def tryUpdateRemote(git: Git, commit: () => Unit, originalRef: String, config: GitConfig, retries: Int)
+                             (implicit remote: URIish): Unit = {
     git.reset().setMode(ResetCommand.ResetType.HARD).setRef(originalRef).call()
 
-    pullRemote(git)
+    pullRemote(git, config)
 
     commit()
 
-    val pushResults = git.push().setForce(false).configureAuthentication().call()
-    val errors = RichRemoteRefUpdate.getPushErrors(pushResults)
+    if (!config.options(DontPush)) {
+      val pushResults = git.push().setForce(false).configureAuthentication().call()
+      val errors = RichRemoteRefUpdate.getPushErrors(pushResults)
 
-    if (errors.nonEmpty) {
-      if (errors.forall(_.isNonFatal) && retries < PUSH_RETRY_NUMBER) {
-        tryUpdateRemote(git, commit, originalRef, retries + 1)
-      } else {
-        val messages = errors.map(e => s"${e.getStatus}: ${e.getMessage}").mkString("\n")
-        sys.error(s"Unable to update remote after $retries retries: $messages")
+      if (errors.nonEmpty) {
+        if (errors.forall(_.isNonFatal) && retries < PUSH_RETRY_NUMBER) {
+          tryUpdateRemote(git, commit, originalRef, config, retries + 1)
+        } else {
+          val messages = errors.map(e => s"${e.getStatus}: ${e.getMessage}").mkString("\n")
+          sys.error(s"Unable to update remote after $retries retries: $messages")
+        }
       }
     }
   }

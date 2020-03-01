@@ -92,7 +92,7 @@ object TricklePlugin extends AutoPlugin {
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
     val url = trickleDbURI.?.value.getOrElse(sys.error("trickleDbURL must be set to sync build metadata"))
     val trickleCache = (LocalRootProject / trickleGitDbRepository / target).value / "trickle"
-    TrickleGitDB.getRepository(trickleCache, url, trickleGitBranch.value)
+    TrickleGitDB.getRepository(trickleCache, url, trickleGitBranch.value, GitConfig.empty)
   }
 
   lazy val trickleGitFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
@@ -109,7 +109,7 @@ object TricklePlugin extends AutoPlugin {
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
     val commitMessage = trickleGitUpdateMessage.value
-    TrickleGitDB.updateSelf(repositoryMetadata, sv, repository, commitMessage)
+    TrickleGitDB.updateSelf(repositoryMetadata, sv, repository, commitMessage, GitConfig.empty)
   }
 
   lazy val trickleGitUpdateMessageTask: Initialize[Task[String]] = Def.task {
