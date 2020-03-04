@@ -114,6 +114,20 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
       if outdated.nonEmpty
     } yield (repository, outdated)
   }
+
+  def dotGraph: String = {
+    val revisionFor: Map[String, String] = metadata.groupBy(_.name).mapValues(_.head.projectMetadata.head.artifact.revision)
+    def nodeName(repo: String): String = s"$repo:${revisionFor(repo)}"
+    val revisionEdges = edges.map {
+      case LkDiEdge(src: RepositoryName, dst: RepositoryName, Label(_, _, true))           =>
+        (nodeName(src) ~+#> nodeName(dst)) ("")
+      case LkDiEdge(src: RepositoryName, dst: RepositoryName, Label(_, dependency, false)) =>
+        (nodeName(src) ~+#> nodeName(dst)) (dependency.revision)
+    }
+    val revisionVertices = vertices.map(nodeName)
+    val revisionGraph = Graph.from(revisionVertices, revisionEdges)
+    depGraph(revisionGraph)
+  }
 }
 
 object BuildTopology {
@@ -122,42 +136,26 @@ object BuildTopology {
 
   def apply(metadata: Seq[RepositoryMetadata]): BuildTopology = new BuildTopology(metadata)
 
-/*
-  def topologicalSort(graph: Topology): Seq[Either[graph.NodeT, Vector[(Int, Iterable[RepositoryName])]]] = {
-    graph.componentTraverser().topologicalSortByComponent.map(_.right.map(_.toLayered.toOuter.toVector)).toSeq
-  }
+  // TODO: reconciliation dot output
 
-  def dotGraph(dir: File, sv: String): String = {
-    val revisionMap: Map[RepositoryName, String] = metas(metaDir(dir, sv)).groupBy(_._1).mapValues(_.head._3.head.artifact.revision)
-    def nodeName(repo: String): String = s"$repo:${revisionMap(repo)}"
-    val graph = mkGraph(dir, sv)
+  // TODO: extract as a configurable class
+  def depGraph[N](graph: Graph[N, LkDiEdge]): String = {
+    type E[+X] = LkDiEdge[X]
 
-    val edges = graph.edges.toOuter.map {
-      case LDiEdge(src: RepositoryName, dst: RepositoryName, (_, _: ModuleID, true))           =>
-        (nodeName(src) ~+#> nodeName(dst)) ("")
-      case LDiEdge(src: RepositoryName, dst: RepositoryName, (_, dependency: ModuleID, false)) =>
-        (nodeName(src) ~+#> nodeName(dst)) (dependency.revision)
-      case LDiEdge(src: RepositoryName, dst: RepositoryName, dependency: ModuleID)             =>
-        (nodeName(src) ~+#> nodeName(dst)) (dependency.revision)
-      case LDiEdge(src: RepositoryName, dst: RepositoryName, label: String)                    =>
-        (nodeName(src) ~+#> nodeName(dst)) (label)
-    }
-
-    val nodes = graph.nodes.toOuter.map(nodeName)
-    val simplifiedGraph = Graph.from(nodes, edges)
-    depGraph(simplifiedGraph)
-  }
-
-  def depGraph[N, E[+X] <: EdgeLikeIn[X]](graph: Topology): String = {
     import scalax.collection.io.dot._
     import implicits._
 
     val root = DotRootGraph(directed = true, id = Some("Slamdata"))
-    val topoMap = topologicalSort(graph)
-      .collect { case Right(x) => x }
-      .flatMap(_.flatMap { case (o, ns) => ns.map(_ -> o) })
-      .groupBy(_._1)
-      .mapValues(_.head._2)
+    val topoMap = graph.topologicalSort match {
+      case Right(to) =>
+        to
+          .toLayered
+          .toOuter
+          .flatMap { case (o, ns) => ns.map(_ -> o) }
+          .groupBy(_._1)
+          .mapValues(_.head._2)
+      case Left(cycle) => sys.error(s"Cycle detected at $cycle")
+    }
 
     def isTrans(ie: graph.EdgeT) = ie.source
       .innerNodeTraverser
@@ -178,11 +176,11 @@ object BuildTopology {
       DotEdgeStmt(ie.source.toString, ie.target.toString, attrs)
     }
 
-    def edgeTransformer(ie: Topology#EdgeT): Option[(DotRootGraph, DotEdgeStmt)] = {
+    def edgeTransformer(ie: Graph[N,E]#EdgeT): Option[(DotRootGraph, DotEdgeStmt)] = {
       Option(root -> edgeStatement(ie.asInstanceOf[graph.EdgeT]))
     }
 
-    def cNodeTranslator(in: Topology#NodeT): Option[(DotSubGraph, DotNodeStmt)] = {
+    def cNodeTranslator(in: Graph[N,E]#NodeT): Option[(DotSubGraph, DotNodeStmt)] = {
       val nodeName = in.toOuter
       val rank = if (topoMap(nodeName) == 0) "source" else "same"
       val subGraph = DotSubGraph(root, topoMap(nodeName), Nil, Seq(DotAttr("rank", rank)))
@@ -191,5 +189,4 @@ object BuildTopology {
 
     graph.toDot(root, edgeTransformer, None, Option(cNodeTranslator))
   }
-*/
 }

@@ -18,6 +18,7 @@ package sbttrickle
 
 import sbt._
 
+import sbttrickle.git.GitConfig
 import sbttrickle.metadata.{ModuleMetadata, RepositoryMetadata}
 
 trait TrickleKeys {
@@ -26,16 +27,25 @@ trait TrickleKeys {
   val trickleRepositoryURI = settingKey[String]("This repository locator")
   val trickleSelfMetadata = taskKey[Seq[ModuleMetadata]]("Project dependency metadata")
 
+  // Pull Requests
+  val trickleIsPullRequestOpen = inputKey[Boolean]("Check whether there's an open pull request to bump versions")
+  val trickleCreatePullRequest = inputKey[Boolean]("Create a pull request to bump versions")
+
   // Database
   val trickleDbURI = settingKey[String]("Metadata database locator")
   val trickleFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
   val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
   val trickleReconcile = taskKey[Unit]("Creates pull requests to bump dependency versions")
+  val trickleUpdateAndReconcile = taskKey[Unit]("Creates pull requests to bump dependency versions, after updating self")
+  val trickleBuildTopology = taskKey[String]("Build topology in dot file format")
+  val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true")
+  val trickleDotGraph = inputKey[String]("Show or save build graph in dot format")
+  // TODO: Save build topology input task
 
   // Git Database
   val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
   val trickleGitDbRepository = taskKey[File]("Trickle db git repository")
   val trickleGitBranch = settingKey[String]("Branch containing the trickle database")
   val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
-
+  val trickleGitConfig = settingKey[GitConfig]("Provides configuration for the git tasks")
 }

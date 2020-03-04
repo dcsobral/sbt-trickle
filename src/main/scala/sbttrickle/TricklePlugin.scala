@@ -23,7 +23,6 @@ import sbt.plugins.JvmPlugin
 
 import sbttrickle.git._
 import sbttrickle.metadata._
-import sbttrickle.metadata.BuildTopology.Label
 
 object TricklePlugin extends AutoPlugin {
   object autoImport extends TrickleKeys {
@@ -39,10 +38,15 @@ object TricklePlugin extends AutoPlugin {
     trickleRepositoryName := baseDirectory.value.name,
     trickleRepositoryURI := "",
 
+    // Database
+    trickleDryMode := false,
+
     // Git Database
     trickleGitBranch := "master",
     trickleGitDbRepository / aggregate := false,
     trickleGitDbRepository := trickleGitDbRepositoryTask.value,
+    trickleGitConfig / aggregate := false,
+    trickleGitConfig := trickleGitConfigTask.value,
   )
 
   lazy val baseProjectSettings: Seq[Def.Setting[_]] = Seq(
@@ -57,6 +61,10 @@ object TricklePlugin extends AutoPlugin {
     trickleUpdateSelf := trickleGitUpdateSelf.value,
     trickleReconcile / aggregate := false,
     trickleReconcile := trickleReconcileTask.value,
+    trickleUpdateAndReconcile / aggregate := false,
+    trickleUpdateAndReconcile := trickleUpdateAndReconcileTask.value,
+    trickleDotGraph / aggregate := false,
+    trickleDotGraph := trickleDotGraphTask.evaluated,
 
     // Git Database
     trickleGitUpdateSelf / aggregate := false,
@@ -68,10 +76,14 @@ object TricklePlugin extends AutoPlugin {
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
   override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
-  // TODO: split reconcile & update+reconcile
+  lazy val trickleUpdateAndReconcileTask: Initialize[Task[Unit]] = Def.task {
+    Def.sequential(trickleUpdateSelf, trickleReconcile).value
+  }
+
+  // TODO: maybe return dot file with result?
   lazy val trickleReconcileTask: Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
-    val metadata = Def.sequential(trickleUpdateSelf, trickleFetchDb).value
+    val metadata = trickleFetchDb.value
     log.info(s"Got ${metadata.size} repositories")
     val topology = BuildTopology(metadata)
     val outdated = topology.getOutdated
@@ -89,10 +101,13 @@ object TricklePlugin extends AutoPlugin {
     }
   }
 
+  lazy val trickleDotGraphTask: Initialize[InputTask[String]] = Def.inputTask {
+    ""
+  }
+
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
-    val url = trickleDbURI.?.value.getOrElse(sys.error("trickleDbURL must be set to sync build metadata"))
     val trickleCache = (LocalRootProject / trickleGitDbRepository / target).value / "trickle"
-    TrickleGitDB.getRepository(trickleCache, url, trickleGitBranch.value, GitConfig.empty)
+    TrickleGitDB.getRepository(trickleCache, trickleGitBranch.value, trickleGitConfig.value)
   }
 
   lazy val trickleGitFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
@@ -103,13 +118,13 @@ object TricklePlugin extends AutoPlugin {
 
   lazy val trickleGitUpdateSelfTask: Initialize[Task[File]] = Def.task {
     val name = trickleRepositoryName.value
-    val url = trickleRepositoryURI.value
+    val thisRepositoryUrl = trickleRepositoryURI.value
     val projectMetadata = trickleSelfMetadata.value
-    val repositoryMetadata = RepositoryMetadata(name, url, projectMetadata)
+    val repositoryMetadata = RepositoryMetadata(name, thisRepositoryUrl, projectMetadata)
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
     val commitMessage = trickleGitUpdateMessage.value
-    TrickleGitDB.updateSelf(repositoryMetadata, sv, repository, commitMessage, GitConfig.empty)
+    TrickleGitDB.updateSelf(repositoryMetadata, repository, sv, commitMessage, trickleGitConfig.value)
   }
 
   lazy val trickleGitUpdateMessageTask: Initialize[Task[String]] = Def.task {
@@ -126,8 +141,10 @@ object TricklePlugin extends AutoPlugin {
   lazy val projectWithDependencies: Initialize[Task[ModuleMetadata]] = Def.task {
     ModuleMetadata(thisProject.value.id, projectID.value, libraryDependencies.value)
   }
+
+  lazy val trickleGitConfigTask: Initialize[GitConfig] = Def.setting {
+    val baseConf = GitConfig(trickleDbURI.value)
+    if (trickleDryMode.value) baseConf.withDontPush
+    else baseConf
+  }
 }
-
-/*
-*/
-
