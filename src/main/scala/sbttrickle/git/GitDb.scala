@@ -22,7 +22,7 @@ import java.lang
 import org.eclipse.jgit.api.{CreateBranchCommand, Git, MergeCommand, PullResult, RebaseCommand, ResetCommand, TransportCommand, TransportConfigCallback}
 import org.eclipse.jgit.lib.{Constants, RepositoryCache}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
-import org.eclipse.jgit.transport.{HttpTransport, JschConfigSessionFactory, OpenSshConfig, PushResult, RemoteRefUpdate, SshTransport, Transport}
+import org.eclipse.jgit.transport.{CredentialsProvider, HttpTransport, JschConfigSessionFactory, OpenSshConfig, PushResult, RemoteRefUpdate, RemoteSession, SshTransport, Transport, URIish}
 import org.eclipse.jgit.util.FS
 
 import com.jcraft.jsch.{JSch, Session}
@@ -40,15 +40,12 @@ import sbt.util.{CacheStore, FileBasedStore}
 import sbttrickle.git.GitConfig._
 import sbttrickle.metadata.RepositoryMetadata
 
-object TrickleGitDB extends TrickleGitDB {
-  override val PushRetryNumber = 3
-}
+object GitDb extends GitDb
+
+// TODO: caching
 
 /** Provides methods to implement trickle's database through a git repository. */
-trait TrickleGitDB {
-  /** Number of times a "push" will be retried */
-  def PushRetryNumber: Int
-
+trait GitDb {
   /** Pretty-printed version of sbt's `CacheStore` */
   private def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
@@ -247,7 +244,7 @@ trait TrickleGitDB {
     val errors = RichRemoteRefUpdate.getPushErrors(pushResults)
 
     if (errors.nonEmpty) {
-      if (errors.forall(_.isNonFatal) && retries < PushRetryNumber) {
+      if (errors.forall(_.isNonFatal) && retries < config.pushRetryNumber) {
         tryUpdateRemote(git, commit, originalRef, retries + 1)
       } else {
         val messages = errors.map(e => s"${e.getStatus}: ${e.getMessage}").mkString("\n")
@@ -306,6 +303,14 @@ trait TrickleGitDB {
 
     private def transportConfigCallback(config: GitConfig, cmd: TC): TransportConfigCallback = {
       val sshSessionFactory = new JschConfigSessionFactory {
+
+        override def getSession(uri: URIish, credentialsProvider: CredentialsProvider, fs: FS, tms: Int): RemoteSession = {
+          if (uri.getUser == null) {
+            for (username <- config.user) uri.setUser(username)
+          }
+          super.getSession(uri, credentialsProvider, fs, tms)
+        }
+
         override def configure(hc: OpenSshConfig.Host, session: Session): Unit = {
           for (password <- config.password) session.setPassword(password)
         }

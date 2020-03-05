@@ -16,7 +16,7 @@
 
 name := "sbt-trickle"
 
-ThisBuild / baseVersion := "0.0.2"
+ThisBuild / baseVersion := "0.1.0"
 ThisBuild / organization := "com.dcsobral"
 ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
@@ -28,5 +28,7 @@ libraryDependencies ++= Seq(
   "org.scala-graph" %% "graph-core" % "1.13.1",
   "org.scala-graph" %% "graph-dot" % "1.13.0",
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.6.1.202002131546-r",
+//  "com.47deg" %% "github4s" % "0.22.0",
+//  "org.typelevel" %% "cats-effect" % "2.1.2",
 )
 

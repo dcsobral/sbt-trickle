@@ -24,9 +24,10 @@ import scalax.collection.edge.LkDiEdge
 
 import scala.collection.immutable.HashMap
 
-import sbt.{ModuleID => _, _}
+//import sbt.{ModuleID => _, _}
 import sbt.librarymanagement.ModuleID
 
+// TODO: in-memory cache
 class BuildTopology(metadata: Seq[RepositoryMetadata]) {
   import BuildTopology._, LabelImplicits._
 
@@ -35,7 +36,8 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
   type Topology = Graph[N, E]
   type RepositoryName = String
 
-  val moduleMap: HashMap[ModuleID, (RepositoryName, ModuleMetadata)] = makeModuleMap
+  val moduleMap: Map[ModuleID, (RepositoryName, ModuleMetadata)] = makeModuleMap
+  val urlFor: Map[RepositoryName, String] = metadata.groupBy(_.name).mapValues(_.head.url)
   val topology: Topology = Graph.from(vertices, edges)
   val roots: collection.Set[topology.NodeT] = topology.nodes.filter(_.inDegree == 0)
 
@@ -45,7 +47,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     val revDeps = for {
       (dstRepository, dstModule) <- moduleMap.values
       dependency <- dstModule.dependencies
-      artifact = ModuleID(dependency.organization, dependency.name, dependency.revision)
+      artifact = ModuleID(dependency.organization, dependency.name, dependency.revision).cross(dependency.crossVersion)
       (srcRepository, srcModule) <- moduleMap.get(keyFor(artifact))
     } yield (srcRepository ~+#> dstRepository)(
       Label(dstModule.artifact, artifact, artifact.revision == srcModule.artifact.revision)
@@ -63,17 +65,19 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
 
   def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
-  def getOutdated: Seq[(String, Set[(ModuleID, ModuleID, String)])] = {
+  def getOutdated: Seq[Outdated] = {
     getOutdated(topology).map {
       case (repository, outdatedDependencies) =>
         val enrichedOutdatedDependencies = outdatedDependencies.map {
-          case Label(src, dst, _) => (src, dst, moduleMap(keyFor(dst))._2.artifact.revision)
+          case Label(src, dst, _) =>
+            val (dstRepository, dstModule) = moduleMap(keyFor(dst))
+            UpdateInfo(src, dst, dstModule.artifact.revision, dstRepository, urlFor(dstRepository))
         }
-        (repository, enrichedOutdatedDependencies)
+        Outdated(repository, urlFor(repository),enrichedOutdatedDependencies)
     }
   }
 
-  def getOutdated(topology: Topology): Seq[(String, Set[Label])] = {
+  private def getOutdated(topology: Topology): Seq[(String, Set[Label])] = {
     val componentsTO: Seq[topology.LayeredTopologicalOrder[topology.NodeT]] =
       topology.componentTraverser().topologicalSortByComponent.toSeq.map {
         case Right(v)         => v.toLayered
@@ -94,7 +98,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
   }
 
   @scala.annotation.tailrec
-  final def getComponentOutdated(topology: Topology)(to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+  private def getComponentOutdated(topology: Topology)(to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
     if (to.isEmpty) Seq.empty
     else {
       val (layer, repositories) = to.head
@@ -107,7 +111,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     }
   }
 
-  def getLayerOutdated(topology: Topology)(repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+  private def getLayerOutdated(topology: Topology)(repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
     for {
       repository <- repositories
       outdated = repository.incoming.filter(!_.upToDate)
@@ -135,8 +139,6 @@ object BuildTopology {
   object LabelImplicits extends LEdgeImplicits[Label]
 
   def apply(metadata: Seq[RepositoryMetadata]): BuildTopology = new BuildTopology(metadata)
-
-  // TODO: reconciliation dot output
 
   // TODO: extract as a configurable class
   def depGraph[N](graph: Graph[N, LkDiEdge]): String = {
