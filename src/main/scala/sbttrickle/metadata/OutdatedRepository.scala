@@ -17,4 +17,4 @@
 package sbttrickle.metadata
 
 /** Indicates `repository` is outdated, and needs to apply `updates`. */
-case class Outdated(repository: String, url:String, updates: Set[UpdateInfo])
+case class OutdatedRepository(repository: String, url:String, updates: Set[ModuleUpdateData])

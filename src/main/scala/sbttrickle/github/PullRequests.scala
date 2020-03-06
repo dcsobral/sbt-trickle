@@ -16,21 +16,20 @@
 
 package sbttrickle.github
 
-/*
 import cats.effect.{ContextShift, IO}
-import cats.effect.IO.contextShift
+//import cats.effect.IO.contextShift
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import github4s.{Github, GithubResponses}
-import github4s.GithubIOSyntax._
-import github4s.domain.{Pagination, PRFilterOpen}
+//import github4s.GithubIOSyntax._
+import github4s.domain.{PRFilterOpen, PullRequest}
 
 object PullRequests {
   implicit val IOContextShift: ContextShift[IO] = IO.contextShift(global)
   def stuff(): Unit = {
     val filter = List(PRFilterOpen)
-    val u1 = Github[IO](sys.env.get("GITHUB_TOKEN")).pullRequests.listPullRequests("dcsobral", "sbt-trickle", filter).toId
-    u1.foreach { res =>
+    val u1 = Github[IO](sys.env.get("GITHUB_TOKEN")).pullRequests.listPullRequests("dcsobral", "sbt-trickle", filter)
+    u1.unsafeRunSync().foreach { res: GithubResponses.GHResult[List[PullRequest]] =>
       res.result.foreach(println)
     }
   }
@@ -48,4 +47,3 @@ object PullRequests {
   // PR user email
   // PR body
 }
-*/

@@ -17,7 +17,7 @@
 package sbttrickle.metadata
 
 import scalax.collection.Graph
-import scalax.collection.GraphPredef._
+//import scalax.collection.GraphPredef._
 import scalax.collection.edge.Implicits._
 import scalax.collection.edge.LBase.LEdgeImplicits
 import scalax.collection.edge.LkDiEdge
@@ -65,26 +65,26 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
 
   def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
-  def getOutdated: Seq[Outdated] = {
-    getOutdated(topology).map {
+  def outdatedRepositories: Seq[OutdatedRepository] = {
+    getOutdatedRepositories(topology).map {
       case (repository, outdatedDependencies) =>
         val enrichedOutdatedDependencies = outdatedDependencies.map {
           case Label(src, dst, _) =>
             val (dstRepository, dstModule) = moduleMap(keyFor(dst))
-            UpdateInfo(src, dst, dstModule.artifact.revision, dstRepository, urlFor(dstRepository))
+            ModuleUpdateData(src, dst, dstModule.artifact.revision, dstRepository, urlFor(dstRepository))
         }
-        Outdated(repository, urlFor(repository),enrichedOutdatedDependencies)
+        OutdatedRepository(repository, urlFor(repository),enrichedOutdatedDependencies)
     }
   }
 
-  private def getOutdated(topology: Topology): Seq[(String, Set[Label])] = {
+  private def getOutdatedRepositories(topology: Topology): Seq[(String, Set[Label])] = {
     val componentsTO: Seq[topology.LayeredTopologicalOrder[topology.NodeT]] =
       topology.componentTraverser().topologicalSortByComponent.toSeq.map {
         case Right(v)         => v.toLayered
         case Left(repository) =>
           sys.error(s"Detected dependency cycle starting on repository $repository")
       }
-    val outdated = componentsTO.flatMap(componentSort => getComponentOutdated(topology)(componentSort.toSeq))
+    val outdated = componentsTO.flatMap(componentSort => getOutdatedRepositoriesOnComponent(topology)(componentSort.toSeq))
     val result = outdated.map {
       case (node, edge) => (node.toOuter, edge.map(_.label : Label))
     }
@@ -93,25 +93,25 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     } else {
       val outdatedNodes = outdated.map(_._1)
       val newTopology = topology -- outdatedNodes.flatMap(_.innerNodeTraverser)
-      result ++ getOutdated(newTopology)
+      result ++ getOutdatedRepositories(newTopology)
     }
   }
 
   @scala.annotation.tailrec
-  private def getComponentOutdated(topology: Topology)(to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+  private def getOutdatedRepositoriesOnComponent(topology: Topology)(to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
     if (to.isEmpty) Seq.empty
     else {
       val (layer, repositories) = to.head
-      if (layer == 0) getComponentOutdated(topology)(to.tail)
+      if (layer == 0) getOutdatedRepositoriesOnComponent(topology)(to.tail)
       else {
-        val outdated = getLayerOutdated(topology)(repositories.toSeq)
-        if (outdated.isEmpty) getComponentOutdated(topology)(to.tail)
+        val outdated = getOutdatedRepositoriesOnLayer(topology)(repositories.toSeq)
+        if (outdated.isEmpty) getOutdatedRepositoriesOnComponent(topology)(to.tail)
         else outdated
       }
     }
   }
 
-  private def getLayerOutdated(topology: Topology)(repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+  private def getOutdatedRepositoriesOnLayer(topology: Topology)(repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
     for {
       repository <- repositories
       outdated = repository.incoming.filter(!_.upToDate)
@@ -119,7 +119,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     } yield (repository, outdated)
   }
 
-  def dotGraph: String = {
+  lazy val dotGraph: String = {
     val revisionFor: Map[String, String] = metadata.groupBy(_.name).mapValues(_.head.projectMetadata.head.artifact.revision)
     def nodeName(repo: String): String = s"$repo:${revisionFor(repo)}"
     val revisionEdges = edges.map {
@@ -132,6 +132,8 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     val revisionGraph = Graph.from(revisionVertices, revisionEdges)
     depGraph(revisionGraph)
   }
+
+  override def toString: String = dotGraph
 }
 
 object BuildTopology {
@@ -147,7 +149,7 @@ object BuildTopology {
     import scalax.collection.io.dot._
     import implicits._
 
-    val root = DotRootGraph(directed = true, id = Some("Slamdata"))
+    val root = DotRootGraph(directed = true, id = Some("Build Topology"))
     val topoMap = graph.topologicalSort match {
       case Right(to) =>
         to

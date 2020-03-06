@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package sbttrickle.librarymanagement
+package sbttrickle
 
 import java.io.File
 
@@ -22,13 +22,13 @@ import sbt._
 import sbt.librarymanagement._
 
 /**
- * Artifact interaction.
+ * Checks artifact availability through the dependency resolver.
  *
  * @param lm The dependency resolver to be used.
- * @param tempDir Where to create the download directory (Coursier resolver ignores this).
+ * @param workDir Where to create the download directory (Coursier resolver ignores this: coursier/coursier#1541).
  */
-class LibraryManagement(lm: DependencyResolution, tempDir: File) {
-  private val retrieveFolder: File = tempDir / "artifacts"
+class Resolver(lm: DependencyResolution, workDir: File) {
+  private val retrieveFolder: File = workDir / "artifacts"
   IO.createDirectory(retrieveFolder)
 
   /**

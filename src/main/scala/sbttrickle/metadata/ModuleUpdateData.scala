@@ -23,4 +23,4 @@ import sbt.librarymanagement.ModuleID
  *
  * The name of the repository that provides `dependency` is `repository` and it is located at `url`.
  */
-case class UpdateInfo(module: ModuleID, dependency: ModuleID, newRevision: String, repository: String, url: String)
+case class ModuleUpdateData(module: ModuleID, dependency: ModuleID, newRevision: String, repository: String, url: String)

@@ -19,10 +19,10 @@ package sbttrickle.git
 import java.io.File
 import java.lang
 
-import org.eclipse.jgit.api.{CreateBranchCommand, Git, MergeCommand, PullResult, RebaseCommand, ResetCommand, TransportCommand, TransportConfigCallback}
+import org.eclipse.jgit.api._
 import org.eclipse.jgit.lib.{Constants, RepositoryCache}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
-import org.eclipse.jgit.transport.{CredentialsProvider, HttpTransport, JschConfigSessionFactory, OpenSshConfig, PushResult, RemoteRefUpdate, RemoteSession, SshTransport, Transport, URIish}
+import org.eclipse.jgit.transport._
 import org.eclipse.jgit.util.FS
 
 import com.jcraft.jsch.{JSch, Session}
@@ -47,11 +47,11 @@ object GitDb extends GitDb
 /** Provides methods to implement trickle's database through a git repository. */
 trait GitDb {
   /** Pretty-printed version of sbt's `CacheStore` */
-  private def getStore(file: File): FileBasedStore[JValue] =
+  private[git] def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
 
   /** Create repository */
-  def createRepository(base: File, branch: String, config: GitConfig): File = {
+  def createRepository(base: File, branch: String, config: GitConfig, log: Logger): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
     initializeRepository(dir, branch)(config)
@@ -65,7 +65,7 @@ trait GitDb {
    * @param branch Branch that will be checked out; only that branch will be fetched.
    * @return Repository directory
    */
-  def getRepository(base: File, branch: String, config: GitConfig): File = {
+  def getRepository(base: File, branch: String, config: GitConfig, log: Logger): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
 
@@ -89,7 +89,8 @@ trait GitDb {
    *
    * @param repository Repository directory, as in the return value of `getRepository`
    */
-  def getBuildMetadata(repository: File, scalaBinaryVersion: String): Seq[RepositoryMetadata] = {
+  def getBuildMetadata(repository: File, scalaBinaryVersion: String, log: Logger): Seq[RepositoryMetadata] = {
+    // TODO: verify valid repository
     val dir = repository / s"scala-$scalaBinaryVersion"
     val metadata = dir
       .listFiles(_.ext == "json")
@@ -108,7 +109,8 @@ trait GitDb {
                  repository: File,
                  scalaBinaryVersion: String,
                  commitMsg: String,
-                 config: GitConfig): File = {
+                 config: GitConfig,
+                 log: Logger): File = {
     val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
     val file: File = repository / relativeName
     val dir = file.getParentFile
@@ -196,7 +198,7 @@ trait GitDb {
   }
 
   /** Check whether there are uncommitted in the index. */
-  private def isModified(git: Git) = {
+  private def isModified(git: Git): Boolean = {
     !git.status().call().getUncommittedChanges.isEmpty
   }
 
