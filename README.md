@@ -13,16 +13,16 @@ Published for SBT 1.3.8.
 
 The main tasks are as follows:
 
-```sbt
+```sbt-console
 trickleUpdateSelf          // Update metadata repository with this project's information
 trickleCreatePullRequests  // Creates pull requests to bump versions
-// To guarantee sequencing:
+// To guarantee execution order, when called from another task, use:
 Def.sequential(trickleUpdateSelf, trickleCreatePullRequests).value
 ```
 
 The following tasks/commands are provided for sbt console usage:
 
-```sbt
+```sbt-console
 show trickleBuildTopology  // Displays build topology graph in dot file format
 ```
 
@@ -31,28 +31,41 @@ show trickleBuildTopology  // Displays build topology graph in dot file format
 On `project/plugins.sbt`:
 
 ```sbt
-addSbtPlugin("com.dcsobral" % "sbt-trickle" % <version>)
+addSbtPlugin("com.dcsobral" % "sbt-trickle" % "<version>")
 ```
 
 On your `build.sbt` settings:
 
 ```sbt
-// Information about your project repository
-trickleRepositoryName in ThisBuild := "<unique name>", // defaults to current directory
-trickleRepositoryURI in ThisBuild := "<url>",          // used to automatically submit PRs
+import sbttrickle.TricklePlugin.autoImport._ // not needed
+import sbttrickle.metadata.OutdatedRepository
+import sbttrickle.git.GitConfig
+import github4s.domain.PullRequest
 
-// Information about the metadata central repository
-trickleDbURI in ThisBuild := "<url>",                  // Used to pull and push dependency information
+lazy val trickleSettings: Seq[Def.Setting[_]] = Seq(
+  // Information about your project repository
+  trickleRepositoryName in ThisBuild := "<unique name>",
+  // Information provided to PR creation and check
+  trickleRepositoryURI in ThisBuild := "<url>",
 
-// Auto bump
-trickleCreatePullRequest := {(_: Outdated) => ()},     // Function which creates the autobump PRs
-                                                       // defaults to logging what needs bumping
+  // Information about the metadata central repository
+  trickleDbURI in ThisBuild := "<url>", // eg, git repository clone url
 
-// Optional settings
-trickleDryMode := false,                               // If set to true, does not update remote
-                                                       // or create pull requests
-trickleGitConfig := GitConfig(trickleDbURI.value),     // Used mostly to configure authentication
-trickleBranch := "master",                             // Branch in which to store the metadata
+  // Auto bump
+  // Function which creates the autobump pull requests;  defaults to logging what needs bumping
+  trickleCreatePullRequest := (??? : OutdatedRepository => Unit),
+  // Function which checks if a pull request is an autobump pull request
+  trickleIsAutobumpPullRequest := (??? : PullRequest => Boolean),
+
+  // Optional settings
+  // If set to true, does not update remote
+  // or create pull requests
+  trickleDryMode := false,
+  // Used to configure git options such as authentication
+  trickleGitConfig := GitConfig(trickleDbURI.value),
+  // Branch to be used in the metadata repository
+  trickleGitBranch := "master"
+)
 ```
 
 ## Authentication
@@ -71,8 +84,15 @@ provided using the standard URL syntax of `https://user:password@domain/`. The p
 `:password`, is optional and not recommended. Instead, pass the personal access token or
 password through the environment variable.
 
-It is also possible to specify user and password by setting `trickleGitConfig`. You can use the
-helper `sbttrickle.git.GitConfig(remote, user, password)`, or create and use `CredentialsProvider`.
+It is also possible to specify user and password by setting `trickleGitConfig` with user and
+password, or creating and using a `CredentialsProvider`. For example:
+
+```sbt
+import sbttrickle.TricklePlugin.autoImport._
+import sbttrickle.git.GitConfig
+
+trickleGitConfig := GitConfig(trickleDbURI.value, sys.env("GITHUB_ACTOR"), sys.env("GITHUB_TOKEN"))
+```
 
 ### SSH
 
@@ -83,15 +103,17 @@ either user and password, or using public/private keys.
 User name and password can be specified in the full URL, though it is not
 recommended for passwords, or through the environment variables `TRICKLE_USER` and
 `TRICKLE_PASSWORD`, which are used as fallbacks. Alternatively , it can
-be passed by overriding `trickleGitConfig` and either using the `sbttrickle.git.GitConfig
-(remote, user, password)` helper, or creating and using a `CredentialsProvider`.
+be passed by overriding `trickleGitConfig`, as seen on the HTTPS section above.
 
 By default, `~/.ssh/identity`, `~/.ssh/id_rsa` and `~/.ssh/id_dsa` will be looked up for
 public/private keys, and must have an empty passphrase. If using another file or a passphrase,
 override `trickleGitConfig` with:
 
 ```sbt
-sbttrickle.git.GitConfig(trickleDbURI.value)
+import sbttrickle.TricklePlugin.autoImport._
+import sbttrickle.git.GitConfig
+
+trickleGitConfig := GitConfig(trickleDbURI.value)
   .withIdentityFile(file("path"), Some(f => "passphrase"))
 ```
 
@@ -130,7 +152,7 @@ The private key might be in a format not supported by jsch, the library used by 
 
 > You can use ssh-keygen to convert the key to the classic OpenSSH format:
 
-```
+```bash
 ssh-keygen -p -f file -m pem
 ```
 

@@ -16,34 +16,56 @@
 
 package sbttrickle.github
 
+import org.eclipse.jgit.transport.URIish
+
 import cats.effect.{ContextShift, IO}
-//import cats.effect.IO.contextShift
+import cats.effect.IO.contextShift
+import github4s.Github
+import github4s.domain.{PRFilter, PRFilterOpen, PullRequest}
+import github4s.GithubResponses.{GHResponse, GHResult}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import github4s.{Github, GithubResponses}
-//import github4s.GithubIOSyntax._
-import github4s.domain.{PRFilterOpen, PullRequest}
+import scala.util.matching.Regex
+
+import sbt.Logger
 
 object PullRequests {
-  implicit val IOContextShift: ContextShift[IO] = IO.contextShift(global)
-  def stuff(): Unit = {
-    val filter = List(PRFilterOpen)
-    val u1 = Github[IO](sys.env.get("GITHUB_TOKEN")).pullRequests.listPullRequests("dcsobral", "sbt-trickle", filter)
-    u1.unsafeRunSync().foreach { res: GithubResponses.GHResult[List[PullRequest]] =>
-      res.result.foreach(println)
+  implicit private val IOContextShift: ContextShift[IO] = contextShift(global)
+
+  private val OwnerAndRepo: Regex = """^/?([^/]+)/([^./]+)(?:\.git)?/?$""".r
+  private val onlyOpen: List[PRFilter] = List(PRFilterOpen)
+
+  def isPullRequestInProgress(repositoryURL: String,
+                              token: String,
+                              isAutobumpPullRequest: PullRequest => Boolean,
+                              log: Logger): Boolean = {
+    val result = for {
+      (owner, repo) <- getOwnerAndRepo(repositoryURL)
+      GHResult(pullRequests, _, _) <- listPullRequests(token, owner, repo)
+    } yield pullRequests.exists(isAutobumpPullRequest)
+
+    result match {
+      case Right(flag)     => flag
+      case Left(exception) => throw exception
     }
   }
-  // Clone repository ???  --V
-  // Run bump version script
-    // Checkout PR branch
-    // Change versions
-    // Commit
-    // Push
-  // Create Pull Request ???
 
-  // PR branch name
-  // PR message
-  // PR user name
-  // PR user email
-  // PR body
+  private def listPullRequests(token: String, owner: String, repo: String): GHResponse[List[PullRequest]] = {
+    Github[IO](Some(token))
+      .pullRequests
+      .listPullRequests(owner, repo, onlyOpen).unsafeRunSync()
+  }
+
+  private def getOwnerAndRepo(repositoryURL: String): Either[Exception, (String, String)] = {
+    val uri = new URIish(repositoryURL)
+    uri.getPath match {
+      case OwnerAndRepo(owner, repo) => Right((owner, repo))
+      case _                         =>
+        Left(new Exception(s"Unable to extract owner and repository name from '$repositoryURL'"))
+    }
+  }
+
+  private implicit class FilterableEither[E, T](x: Either[E, T]) {
+    def withFilter(p: T => Boolean): Either[E, T] = x
+  }
 }

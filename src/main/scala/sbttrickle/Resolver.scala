@@ -27,7 +27,7 @@ import sbt.librarymanagement._
  * @param lm The dependency resolver to be used.
  * @param workDir Where to create the download directory (Coursier resolver ignores this: coursier/coursier#1541).
  */
-class Resolver(lm: DependencyResolution, workDir: File) {
+class Resolver(lm: DependencyResolution, workDir: File, log: Logger) {
   private val retrieveFolder: File = workDir / "artifacts"
   IO.createDirectory(retrieveFolder)
 
@@ -36,7 +36,7 @@ class Resolver(lm: DependencyResolution, workDir: File) {
    *
    * Artifacts are resolved in the "Provided" configuration, to avoid repeated retrieval.
    */
-  def isArtifactAvailable(artifact: ModuleID, log: Logger): Boolean = {
+  def isArtifactAvailable(artifact: ModuleID): Boolean = {
     val result = lm.retrieve((artifact % Provided).intransitive().force(), None, retrieveFolder, log).isRight
     if (!result) {
       log.debug(s"$artifact is not available")

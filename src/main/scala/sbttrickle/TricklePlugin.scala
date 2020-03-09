@@ -16,7 +16,7 @@
 
 package sbttrickle
 
-import sbt.{Def, _}
+import sbt._
 import sbt.Def.Initialize
 import sbt.Keys._
 import sbt.plugins.JvmPlugin
@@ -35,7 +35,7 @@ object TricklePlugin extends AutoPlugin {
 
   lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
     // Self
-    trickleRepositoryName := baseDirectory.value.name,
+    trickleRepositoryName := trickleRepositoryNameSetting.value,
     trickleRepositoryURI := trickleRepositoryUriSetting.value,
 
     // Database
@@ -87,14 +87,15 @@ object TricklePlugin extends AutoPlugin {
   lazy val trickleCreatePullRequestsTask: Initialize[Task[Unit]] = Def.task {
     val createPullRequest = trickleCreatePullRequest.value
     val outdated = trickleUpdatableRepositories.value
-    Autobump.createPullRequests(outdated, createPullRequest)
+    val log = streams.value.log
+    Autobump.createPullRequests(outdated, createPullRequest, log)
   } tag Tags.Network
 
   lazy val trickleUpdatableRepositoriesTask: Initialize[Task[Seq[OutdatedRepository]]] = Def.task {
-    val log = streams.value.log
     val outdated = trickleOutdatedRepositories.value
     val workDir = trickleCache.value
     val lm = dependencyResolution.value
+    val log = streams.value.log
     Autobump.getUpdatableRepositories(outdated, lm, workDir, log)
   } tag (Tags.Update, Tags.Network)
 
@@ -102,13 +103,15 @@ object TricklePlugin extends AutoPlugin {
     GitDb.getRepository(trickleCache.value, trickleGitBranch.value, trickleGitConfig.value, streams.value.log)
   } tag Tags.Network
 
+  // TODO: prevent update self if repository has uncommitted changes
   lazy val trickleGitUpdateSelfTask: Initialize[Task[File]] = Def.task {
     val repositoryMetadata = trickleSelfMetadata.value
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
     val commitMessage = trickleGitUpdateMessage.value
     val config = trickleGitConfig.value
-    GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, streams.value.log)
+    val log = streams.value.log
+    GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, log)
   } tag Tags.Network
 
   lazy val trickleSelfMetadataTask: Initialize[Task[RepositoryMetadata]] = Def.task {
@@ -131,11 +134,21 @@ object TricklePlugin extends AutoPlugin {
     else baseConf
   }
 
-  lazy val trickleRepositoryUriSetting: Initialize[String] = Def.setting {
+  lazy val scmOrHomepageURL: Initialize[Option[URL]] = Def.setting {
     scmInfo.value
       .map(_.browseUrl)
       .orElse(homepage.value)
+  }
+
+  lazy val trickleRepositoryUriSetting: Initialize[String] = Def.setting {
+    scmOrHomepageURL.value
       .map(_.toString)
       .getOrElse(sys.error("trickleRepositoryURI is required"))
+  }
+
+  lazy val trickleRepositoryNameSetting: Initialize[String] = Def.setting {
+    scmOrHomepageURL.value
+      .map(url => Project.normalizeModuleID(url.getPath.substring(1)))
+      .getOrElse(baseDirectory.value.name)
   }
 }

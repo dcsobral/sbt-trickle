@@ -17,7 +17,6 @@
 package sbttrickle.git
 
 import java.io.File
-import java.lang
 
 import org.eclipse.jgit.api._
 import org.eclipse.jgit.lib.{Constants, RepositoryCache}
@@ -243,7 +242,7 @@ trait GitDb {
     commit()
 
     val pushResults = git.push().setForce(false).configureAuthentication().setDryRun(config.options(DontPush)).call()
-    val errors = RichRemoteRefUpdate.getPushErrors(pushResults)
+    val errors = RichRemoteRefUpdate.getPushErrors(pushResults.asScala)
 
     if (errors.nonEmpty) {
       if (errors.forall(_.isNonFatal) && retries < config.pushRetryNumber) {
@@ -266,9 +265,9 @@ trait GitDb {
     val successStatus = Set(OK, UP_TO_DATE)
     val nonFatalStatus = Set(REJECTED_NONFASTFORWARD, REJECTED_REMOTE_CHANGED)
 
-    def getPushErrors(pushResults: lang.Iterable[PushResult]): Seq[RemoteRefUpdate] = {
+    def getPushErrors(pushResults: Iterable[PushResult]): Seq[RemoteRefUpdate] = {
       val errors = for {
-        pushResult <- pushResults.asScala.toSeq
+        pushResult <- pushResults.toSeq
         refUpdate <- pushResult.getRemoteUpdates.asScala
         if !refUpdate.isSuccess
       } yield refUpdate

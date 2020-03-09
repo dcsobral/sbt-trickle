@@ -17,7 +17,6 @@
 package sbttrickle
 
 import sbt.Logger
-import sbt.internal.util.ManagedLogger
 import sbt.librarymanagement.DependencyResolution
 
 import sbttrickle.metadata.{BuildTopology, OutdatedRepository, RepositoryMetadata}
@@ -28,7 +27,9 @@ trait Autobump {
    * @param outdatedRepositories
    * @param createPullRequest
    */
-  def createPullRequests(outdatedRepositories: Seq[OutdatedRepository], createPullRequest: OutdatedRepository => Unit): Unit = {
+  def createPullRequests(outdatedRepositories: Seq[OutdatedRepository],
+                         createPullRequest: OutdatedRepository => Unit,
+                         log: Logger): Unit = {
     outdatedRepositories.foreach(createPullRequest)
   }
 
@@ -38,7 +39,7 @@ trait Autobump {
    * @param log
    * @return
    */
-  def getOutdatedRepositories(metadata: Seq[RepositoryMetadata], log: ManagedLogger): Seq[OutdatedRepository] = {
+  def getOutdatedRepositories(metadata: Seq[RepositoryMetadata], log: Logger): Seq[OutdatedRepository] = {
     log.debug(s"Got ${metadata.size} repositories")
     val topology = BuildTopology(metadata)
     val outdatedRepositories = topology.outdatedRepositories
@@ -57,10 +58,10 @@ trait Autobump {
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
                                dependencyResolution: DependencyResolution,
                                workDir: sbt.File,
-                               log: ManagedLogger): Seq[OutdatedRepository] = {
-    val lm = new Resolver(dependencyResolution, workDir)
+                               log: Logger): Seq[OutdatedRepository] = {
+    val lm = new Resolver(dependencyResolution, workDir, log)
     outdatedRepositories.map { o =>
-      val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency, log))
+      val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
   }
