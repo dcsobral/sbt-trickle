@@ -16,5 +16,10 @@
 
 package sbttrickle.metadata
 
+import sbttrickle.git.OwnerAndRepository
+
 /** Indicates `repository` is outdated, and needs to apply `updates`. */
-case class OutdatedRepository(repository: String, url:String, updates: Set[ModuleUpdateData])
+case class OutdatedRepository(repository: String, url:String, updates: Set[ModuleUpdateData]) {
+  /** Extracts owner and repository for github-like `url`'s. */
+  def ownerAndRepository: Option[(String, String)] = OwnerAndRepository(url)
+}

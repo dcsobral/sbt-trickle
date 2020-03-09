@@ -16,8 +16,6 @@
 
 package sbttrickle.github
 
-import org.eclipse.jgit.transport.URIish
-
 import cats.effect.{ContextShift, IO}
 import cats.effect.IO.contextShift
 import github4s.Github
@@ -25,14 +23,14 @@ import github4s.domain.{PRFilter, PRFilterOpen, PullRequest}
 import github4s.GithubResponses.{GHResponse, GHResult}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.matching.Regex
 
 import sbt.Logger
+
+import sbttrickle.git.OwnerAndRepository
 
 object PullRequests {
   implicit private val IOContextShift: ContextShift[IO] = contextShift(global)
 
-  private val OwnerAndRepo: Regex = """^/?([^/]+)/([^./]+)(?:\.git)?/?$""".r
   private val onlyOpen: List[PRFilter] = List(PRFilterOpen)
 
   def isPullRequestInProgress(repositoryURL: String,
@@ -40,7 +38,7 @@ object PullRequests {
                               isAutobumpPullRequest: PullRequest => Boolean,
                               log: Logger): Boolean = {
     val result = for {
-      (owner, repo) <- getOwnerAndRepo(repositoryURL)
+      (owner, repo) <- OwnerAndRepository(repositoryURL).toRight(makeException(repositoryURL))
       GHResult(pullRequests, _, _) <- listPullRequests(token, owner, repo)
     } yield pullRequests.exists(isAutobumpPullRequest)
 
@@ -50,19 +48,14 @@ object PullRequests {
     }
   }
 
+  private def makeException(repositoryURL: String): Exception = {
+    new Exception(s"Unable to extract owner and repository name from '$repositoryURL'")
+  }
+
   private def listPullRequests(token: String, owner: String, repo: String): GHResponse[List[PullRequest]] = {
     Github[IO](Some(token))
       .pullRequests
       .listPullRequests(owner, repo, onlyOpen).unsafeRunSync()
-  }
-
-  private def getOwnerAndRepo(repositoryURL: String): Either[Exception, (String, String)] = {
-    val uri = new URIish(repositoryURL)
-    uri.getPath match {
-      case OwnerAndRepo(owner, repo) => Right((owner, repo))
-      case _                         =>
-        Left(new Exception(s"Unable to extract owner and repository name from '$repositoryURL'"))
-    }
   }
 
   private implicit class FilterableEither[E, T](x: Either[E, T]) {
