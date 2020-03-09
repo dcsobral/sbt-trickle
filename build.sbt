@@ -16,7 +16,8 @@
 
 name := "sbt-trickle"
 
-ThisBuild / baseVersion := "0.1.0"
+ThisBuild / version := "0.1.1"
+ThisBuild / baseVersion := "0.1.1"
 ThisBuild / organization := "com.dcsobral"
 ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
