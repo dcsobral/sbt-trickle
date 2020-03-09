@@ -22,6 +22,7 @@ import sbt.Keys._
 import sbt.plugins.JvmPlugin
 
 import sbttrickle.git._
+import sbttrickle.github.PullRequests
 import sbttrickle.metadata._
 
 object TricklePlugin extends AutoPlugin {
@@ -37,6 +38,9 @@ object TricklePlugin extends AutoPlugin {
     // Self
     trickleRepositoryName := trickleRepositoryNameSetting.value,
     trickleRepositoryURI := trickleRepositoryUriSetting.value,
+
+    // Auto bump
+    trickleIsAutobumpPullRequestOpen := trickleIsPullRequestOpenSetting.value,
 
     // Database
     trickleDryMode := false,
@@ -58,27 +62,27 @@ object TricklePlugin extends AutoPlugin {
     trickleSelfMetadata := trickleSelfMetadataTask.value,
 
     // Auto bump
+    trickleCreatePullRequests / aggregate := false,
+    trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
+    trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
     trickleOutdatedRepositories / aggregate := false,
     trickleOutdatedRepositories := Autobump.getOutdatedRepositories(trickleFetchDb.value, streams.value.log),
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
-    trickleCreatePullRequests / aggregate := false,
-    trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
-    trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
 
     // Database
+    trickleBuildTopology / aggregate := false,
+    trickleBuildTopology := BuildTopology(trickleFetchDb.value), // TODO: cache
     trickleFetchDb / aggregate := false,
     trickleFetchDb := GitDb.getBuildMetadata(trickleGitDbRepository.value, scalaBinaryVersion.value, streams.value.log),
     trickleUpdateSelf / aggregate := false,
     trickleUpdateSelf := trickleGitUpdateSelf.value,
-    trickleBuildTopology / aggregate := false,
-    trickleBuildTopology := BuildTopology(trickleFetchDb.value), // TODO: cache
 
     // Git Database
-    trickleGitUpdateSelf / aggregate := false,
-    trickleGitUpdateSelf := trickleGitUpdateSelfTask.value,
     trickleGitUpdateMessage / aggregate := false,
     trickleGitUpdateMessage := s"${trickleRepositoryName.value} version bump",
+    trickleGitUpdateSelf / aggregate := false,
+    trickleGitUpdateSelf := trickleGitUpdateSelfTask.value,
   )
 
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
@@ -96,7 +100,8 @@ object TricklePlugin extends AutoPlugin {
     val workDir = trickleCache.value
     val lm = dependencyResolution.value
     val log = streams.value.log
-    Autobump.getUpdatableRepositories(outdated, lm, workDir, log)
+    Autobump.getUpdatableRepositories(outdated, trickleIsAutobumpPullRequestOpen.value, lm, workDir, log)
+
   } tag (Tags.Update, Tags.Network)
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
@@ -126,6 +131,17 @@ object TricklePlugin extends AutoPlugin {
   /** Helper required by sbt macros and ".all", on trickleSelfMetadataTask */
   lazy val projectWithDependencies: Initialize[ModuleMetadata] = Def.setting {
     ModuleMetadata(moduleName.value, projectID.value, libraryDependencies.value)
+  }
+
+  lazy val trickleIsPullRequestOpenSetting: Initialize[OutdatedRepository => Boolean] = Def.setting { outdatedRepository =>
+    val log = sLog.value
+    val repositoryURL = outdatedRepository.url
+    val isAutobumpPullRequest = trickleGithubIsAutobumpPullRequest.value
+    val token = trickleGitConfig.value
+      .copy(remote = repositoryURL)
+      .password
+      .getOrElse(sys.error(s"No github token available for $repositoryURL"))
+    PullRequests.isPullRequestInProgress(repositoryURL, token, isAutobumpPullRequest, log)
   }
 
   lazy val trickleGitConfigSetting: Initialize[GitConfig] = Def.setting {

@@ -32,7 +32,7 @@ trait TrickleKeys {
   // Auto bump
   val trickleCreatePullRequest = settingKey[OutdatedRepository => Unit]("Function to create a pull request for one repository")
   val trickleCreatePullRequests = taskKey[Unit]("Create autobump pull requests on repositories without them")
-  val trickleIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs")
+  val trickleIsAutobumpPullRequestOpen = settingKey[OutdatedRepository => Boolean]("Predicate for trickle-created PRs")
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
 
@@ -50,6 +50,9 @@ trait TrickleKeys {
   val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
   val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
   // TODO: create empty repo task
+
+  // Github Pull Requests
+  val trickleGithubIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs on Github")
 
   // Other
   // TODO: "outdated" topology dot graph task

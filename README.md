@@ -54,8 +54,11 @@ lazy val trickleSettings: Seq[Def.Setting[_]] = Seq(
   // Auto bump
   // Function which creates the autobump pull requests;  defaults to logging what needs bumping
   trickleCreatePullRequest := (??? : OutdatedRepository => Unit),
-  // Function which checks if a pull request is an autobump pull request
-  trickleIsAutobumpPullRequest := (??? : PullRequest => Boolean),
+  // Function which checks if an outdated repository has outstanding autobump pull requests
+  // defaults to using trickleGithubIsAutobumpPullRequest
+  trickleIsAutobumpPullRequestOpen := (??? : OutdatedRepository => Boolean),
+  // Function which checks if a pull request is an autobump pull request on Github
+  trickleGithubIsAutobumpPullRequest := (??? : PullRequest => Boolean),
 
   // Optional settings
   // If set to true, does not update remote

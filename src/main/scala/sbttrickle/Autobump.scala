@@ -56,6 +56,7 @@ trait Autobump {
    * @return
    */
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
+                               isPullRequestOpen: OutdatedRepository => Boolean,
                                dependencyResolution: DependencyResolution,
                                workDir: sbt.File,
                                log: Logger): Seq[OutdatedRepository] = {
@@ -64,6 +65,7 @@ trait Autobump {
       val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
+      .filterNot(isPullRequestOpen)
   }
 
   /**
