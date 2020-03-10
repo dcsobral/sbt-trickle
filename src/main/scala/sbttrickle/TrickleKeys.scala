@@ -27,7 +27,7 @@ trait TrickleKeys {
   // Self
   val trickleRepositoryName = settingKey[String]("Repository name to be used when storing metadata")
   val trickleRepositoryURI = settingKey[String]("This repository locator")
-  val trickleSelfMetadata = taskKey[RepositoryMetadata]("Project dependency metadata")
+  val trickleSelfMetadata = settingKey[RepositoryMetadata]("Project dependency metadata")
 
   // Auto bump
   val trickleCreatePullRequest = settingKey[OutdatedRepository => Unit]("Function to create a pull request for one repository")
@@ -35,6 +35,7 @@ trait TrickleKeys {
   val trickleIsAutobumpPullRequestOpen = settingKey[OutdatedRepository => Boolean]("Predicate for trickle-created PRs")
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
+  val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version")
 
   // Database
   val trickleDbURI = settingKey[String]("Metadata database locator")

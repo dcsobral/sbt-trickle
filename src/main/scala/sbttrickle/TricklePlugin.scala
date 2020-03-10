@@ -21,6 +21,7 @@ import github4s.domain.PullRequest
 import sbt._
 import sbt.Def.Initialize
 import sbt.Keys._
+import sbt.complete.{DefaultParsers, FixedSetExamples, Parser}
 import sbt.plugins.JvmPlugin
 
 import sbttrickle.git._
@@ -72,6 +73,7 @@ object TricklePlugin extends AutoPlugin {
     trickleOutdatedRepositories := Autobump.getOutdatedRepositories(trickleFetchDb.value, streams.value.log),
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
+    trickleCheckVersion := trickleCheckVersionTask.evaluated,  // default aggregate value
 
     // Database
     trickleBuildTopology / aggregate := false,
@@ -107,6 +109,29 @@ object TricklePlugin extends AutoPlugin {
 
   } tag (Tags.Update, Tags.Network)
 
+  lazy val trickleCheckVersionTask: Initialize[InputTask[Unit]] = Def.inputTask {
+    val log = streams.value.log
+    val prj = moduleName.value
+    val modules = checkVersionParser.parsed
+    val lib = libraryDependencies.value
+    val missing = modules.filter {
+      case (org, name, rev) => lib.exists(m => m.organization == org && m.name == name && m.revision != rev)
+    }
+    if (missing.nonEmpty) {
+      missing.foreach {
+        case (org, name, rev) =>
+          val existing = lib.filter(m => m.organization == org && m.name == name).map(_.revision).distinct
+          log.error(s"$prj / trickleCheckVersion")
+          if (existing.isEmpty) {
+            log.error(s"$prj $org:$name:* not found")
+          } else {
+            log.error(s"$org:$name:$rev not found; in use: ${existing.mkString(" ")}")
+          }
+      }
+      sys.error("Dependency check error")
+    }
+  }
+
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
     GitDb.getRepository(trickleCache.value, trickleGitBranch.value, trickleGitConfig.value, streams.value.log)
   } tag Tags.Network
@@ -122,7 +147,7 @@ object TricklePlugin extends AutoPlugin {
     GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, log)
   } tag Tags.Network
 
-  lazy val trickleSelfMetadataTask: Initialize[Task[RepositoryMetadata]] = Def.task {
+  lazy val trickleSelfMetadataTask: Initialize[RepositoryMetadata] = Def.setting {
     val name = trickleRepositoryName.value
     val thisRepositoryUrl = trickleRepositoryURI.value
     val projectMetadata = projectWithDependencies
@@ -169,5 +194,22 @@ object TricklePlugin extends AutoPlugin {
     scmOrHomepageURL.value
       .map(url => Project.normalizeModuleID(url.getPath.substring(1)))
       .getOrElse(baseDirectory.value.name)
+  }
+
+  lazy val checkVersionParser: Initialize[Parser[Seq[(String, String, String)]]] = Def.setting {
+    import DefaultParsers._
+    val lib = libraryDependencies.value.map(m => ModuleID(m.organization, m.name, m.revision)).distinct
+
+    def select1(items: Iterable[String]): Parser[String] = token(StringBasic.examples(FixedSetExamples(items)))
+    def sep: Parser[Any] = OptSpace ~ '%' ~ OptSpace | ':'
+    def moduleParser: Parser[(String, String, String)] = for {
+      org <- select1(lib.map(_.organization))
+      lib1 = lib.filter(_.organization == org)
+      name <- sep ~> select1(lib1.map(_.name))
+      lib2 = lib1.filter(_.name == name)
+      revision <- sep ~> select1(lib2.map(_.revision))
+    } yield (org, name, revision)
+
+    (Space ~> moduleParser).+
   }
 }

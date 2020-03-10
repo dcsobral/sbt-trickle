@@ -17,8 +17,7 @@
 name := "sbt-trickle"
 
 // TODO: work on a command/alias that makes release work for me
-ThisBuild / version := "0.2.2"
-ThisBuild / baseVersion := "0.2.2"
+ThisBuild / baseVersion := "0.2"
 ThisBuild / organization := "com.dcsobral"
 ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"

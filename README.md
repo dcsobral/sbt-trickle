@@ -20,6 +20,13 @@ trickleCreatePullRequests  // Creates pull requests to bump versions
 Def.sequential(trickleUpdateSelf, trickleCreatePullRequests).value
 ```
 
+Pull request creation can use the following input task to make sure the dependencies
+were properly updated. If any differing revision is found, it will fail.
+
+```sbt-console
+trickleCheckVersion org:name:revision {...}
+```
+
 The following tasks/commands are provided for sbt console usage:
 
 ```sbt-console
