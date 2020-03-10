@@ -43,7 +43,6 @@ case class GitConfig(remote: String,
   /** Remote as a `URIish`. */
   val remoteURI: URIish = new URIish(remote)
 
-
   /**
    * User name provided through `credentialsProvider`.
    */
@@ -61,7 +60,7 @@ case class GitConfig(remote: String,
   def password: Option[String] = {
     credentialsProvider.flatMap { provider =>
       val u = new CredentialItem.Password()
-      if (provider.get(remoteURI, u)) Some(u.getValue.toString)
+      if (provider.get(remoteURI, u)) Some(u.getValue.mkString(""))
       else None
     }
   }
