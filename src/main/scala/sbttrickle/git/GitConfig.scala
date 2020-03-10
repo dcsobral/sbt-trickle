@@ -18,7 +18,7 @@ package sbttrickle.git
 
 import java.io.File
 
-import org.eclipse.jgit.transport.{CredentialsProvider, URIish, UsernamePasswordCredentialsProvider}
+import org.eclipse.jgit.transport.{CredentialItem, CredentialsProvider, URIish, UsernamePasswordCredentialsProvider}
 
 /**
  * Configuration parameters for [[sbttrickle.git.GitDb]].
@@ -45,16 +45,26 @@ case class GitConfig(remote: String,
 
 
   /**
-   * User name provided through remote or `TRICKLE_USER`, but
-   * not through `credentialsProvider`.
+   * User name provided through `credentialsProvider`.
    */
-  def user: Option[String] = GitConfig.user(remoteURI)
+  def user: Option[String] = {
+    credentialsProvider.flatMap { provider =>
+      val u = new CredentialItem.Username
+      if (provider.get(remoteURI, u)) Some(u.getValue)
+      else None
+    }
+  }
 
   /**
-   * Password provided through remote or `TRICKLE_PASSWORD`, but
-   * not through `credentialsProvider`.
+   * Password provided through `credentialsProvider`.
    */
-  def password: Option[String] = GitConfig.password(remoteURI)
+  def password: Option[String] = {
+    credentialsProvider.flatMap { provider =>
+      val u = new CredentialItem.Password()
+      if (provider.get(remoteURI, u)) Some(u.getValue.toString)
+      else None
+    }
+  }
 
   def withCredentialsProvider(credentialsProvider: CredentialsProvider): GitConfig =
     copy(credentialsProvider = Option(credentialsProvider))
