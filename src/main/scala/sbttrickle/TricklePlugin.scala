@@ -16,6 +16,8 @@
 
 package sbttrickle
 
+import github4s.domain.PullRequest
+
 import sbt._
 import sbt.Def.Initialize
 import sbt.Keys._
@@ -41,6 +43,7 @@ object TricklePlugin extends AutoPlugin {
 
     // Auto bump
     trickleIsAutobumpPullRequestOpen := trickleIsPullRequestOpenSetting.value,
+    trickleGithubIsAutobumpPullRequest := ((_: PullRequest) => false),
 
     // Database
     trickleDryMode := false,

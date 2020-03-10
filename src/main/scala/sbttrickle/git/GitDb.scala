@@ -110,6 +110,7 @@ trait GitDb {
                  commitMsg: String,
                  config: GitConfig,
                  log: Logger): File = {
+    // FIXME: make repositoryMetadata.name file-safe
     val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
     val file: File = repository / relativeName
     val dir = file.getParentFile
@@ -329,8 +330,11 @@ trait GitDb {
 
       transport: Transport => {
         (transport, cmd) match {
-          case (sshTransport: SshTransport, _)                =>
+          case (sshTransport: SshTransport, _)   =>
             sshTransport.setSshSessionFactory(sshSessionFactory)
+          case (transportHttp: TransportHttp, _) =>
+            transportHttp.setAdditionalHeaders(Map("Accept" -> "application/vnd.github.machine-man-preview+json").asJava)
+            config.credentialsProvider.foreach(transportHttp.setCredentialsProvider)
           case (httpTransport: HttpTransport, _) =>
             config.credentialsProvider.foreach(httpTransport.setCredentialsProvider)
           case _ =>

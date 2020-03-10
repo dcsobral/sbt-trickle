@@ -52,6 +52,7 @@ object PullRequests {
     new Exception(s"Unable to extract owner and repository name from '$repositoryURL'")
   }
 
+  // FIXME: github4s doesn't auto-paginate
   private def listPullRequests(token: String, owner: String, repo: String): GHResponse[List[PullRequest]] = {
     Github[IO](Some(token))
       .pullRequests

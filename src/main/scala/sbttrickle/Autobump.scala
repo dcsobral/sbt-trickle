@@ -66,6 +66,7 @@ trait Autobump {
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
       .filterNot(isPullRequestOpen)
+    // TODO: log exclusions
   }
 
   /**

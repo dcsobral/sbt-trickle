@@ -58,6 +58,7 @@ lazy val trickleSettings: Seq[Def.Setting[_]] = Seq(
   // defaults to using trickleGithubIsAutobumpPullRequest
   trickleIsAutobumpPullRequestOpen := (??? : OutdatedRepository => Boolean),
   // Function which checks if a pull request is an autobump pull request on Github
+  // defaults to always returning false, so beware
   trickleGithubIsAutobumpPullRequest := (??? : PullRequest => Boolean),
 
   // Optional settings
