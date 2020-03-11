@@ -27,9 +27,20 @@ import sbt.librarymanagement._
  * @param lm The dependency resolver to be used.
  * @param workDir Where to create the download directory (Coursier resolver ignores this: coursier/coursier#1541).
  */
-class Resolver(lm: DependencyResolution, workDir: File, log: Logger) {
+class Resolver private (lm: DependencyResolution, workDir: File, log: Logger, intransitive: Boolean) {
   private val retrieveFolder: File = workDir / "artifacts"
   IO.createDirectory(retrieveFolder)
+
+  /**
+   * Checks artifact availability through the dependency resolver.
+   *
+   * @param lm The dependency resolver to be used.
+   * @param workDir Where to create the download directory (Coursier resolver ignores this: coursier/coursier#1541).
+   */
+  def this(lm: DependencyResolution, workDir: File, log: Logger) = this(lm, workDir, log, false)
+
+  /** Resolve only the artifact itself, without its dependencies. */
+  def intransitive(): Resolver = new Resolver(lm, workDir, log, true)
 
   /**
    * Checks whether the artifact is available. Downloads the artifact as a side effect.
@@ -37,12 +48,15 @@ class Resolver(lm: DependencyResolution, workDir: File, log: Logger) {
    * Artifacts are resolved in the "Provided" configuration, to avoid repeated retrieval.
    */
   def isArtifactAvailable(artifact: ModuleID): Boolean = {
-    val result = lm.retrieve((artifact % Provided).intransitive().force(), None, retrieveFolder, log).isRight
+    val result = lm.retrieve(transitivity((artifact % Provided).force()), None, retrieveFolder, log).isRight
     if (!result) {
       log.debug(s"$artifact is not available")
     }
     result
   }
 
+  private def transitivity(artifact: ModuleID): ModuleID =
+    if (intransitive) artifact.intransitive() else artifact
+  // TODO: resolve exported artifacts on topology traversal, and discard the ones that haven't made their artifacts available yet
   // TODO: resolve multiple dependencies at once and return true if all available
 }

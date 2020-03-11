@@ -36,6 +36,7 @@ trait TrickleKeys {
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
   val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version")
+  val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
 
   // Database
   val trickleDbURI = settingKey[String]("Metadata database locator")
@@ -54,6 +55,7 @@ trait TrickleKeys {
 
   // Github Pull Requests
   val trickleGithubIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs on Github")
+  // TODO: maybeReplacePR
 
   // Other
   // TODO: "outdated" topology dot graph task

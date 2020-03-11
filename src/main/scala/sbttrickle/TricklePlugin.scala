@@ -74,6 +74,7 @@ object TricklePlugin extends AutoPlugin {
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
     trickleCheckVersion := trickleCheckVersionTask.evaluated,  // default aggregate value
+    trickleIntransitiveResolve := false,
 
     // Database
     trickleBuildTopology / aggregate := false,
@@ -102,10 +103,12 @@ object TricklePlugin extends AutoPlugin {
 
   lazy val trickleUpdatableRepositoriesTask: Initialize[Task[Seq[OutdatedRepository]]] = Def.task {
     val outdated = trickleOutdatedRepositories.value
-    val workDir = trickleCache.value
+    val isPullRequestOpen = trickleIsAutobumpPullRequestOpen.value
     val lm = dependencyResolution.value
+    val intransitive = trickleIntransitiveResolve.value
+    val workDir = trickleCache.value
     val log = streams.value.log
-    Autobump.getUpdatableRepositories(outdated, trickleIsAutobumpPullRequestOpen.value, lm, workDir, log)
+    Autobump.getUpdatableRepositories(outdated, isPullRequestOpen, lm, intransitive, workDir, log)
 
   } tag (Tags.Update, Tags.Network)
 

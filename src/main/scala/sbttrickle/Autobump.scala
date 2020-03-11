@@ -58,6 +58,7 @@ trait Autobump {
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
                                isPullRequestOpen: OutdatedRepository => Boolean,
                                dependencyResolution: DependencyResolution,
+                               intransitive: Boolean,
                                workDir: sbt.File,
                                log: Logger): Seq[OutdatedRepository] = {
     val lm = new Resolver(dependencyResolution, workDir, log)
