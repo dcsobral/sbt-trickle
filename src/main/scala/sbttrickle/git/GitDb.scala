@@ -70,7 +70,7 @@ trait GitDb {
 
     if (!isValidRepository(dir)) {
       initOrCloneRepository(dir, branch)(config)
-    } else if (branch != Using.file(Git.open(_, FS.DETECTED))(dir)(_.getRepository.getBranch)) {
+    } else if (Using.file(Git.open(_, FS.DETECTED))(dir)(git => !isRightConfiguration(git, branch)(config))) {
       IO.delete(dir)
       IO.createDirectory(dir)
       initOrCloneRepository(dir, branch)(config)
@@ -81,6 +81,15 @@ trait GitDb {
     }
 
     dir
+  }
+
+  /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
+  private def isRightConfiguration(git: Git, branch: String)(implicit config: GitConfig): Boolean = {
+    val isBranchCorrect = git.getRepository.getBranch == branch
+    val remotes = git.remoteList().call().asScala
+    val origin = remotes.find(_.getName == Constants.DEFAULT_REMOTE_NAME)
+    val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
+    isBranchCorrect && hasRightURI
   }
 
   /**
@@ -111,6 +120,7 @@ trait GitDb {
                  config: GitConfig,
                  log: Logger): File = {
     // FIXME: make repositoryMetadata.name file-safe
+    // TODO: validate "repository" everywhere it appears
     val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
     val file: File = repository / relativeName
     val dir = file.getParentFile

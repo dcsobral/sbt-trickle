@@ -77,10 +77,10 @@ object GitConfig {
   sealed trait Options
 
   /** Do not fetch from remote */
-  object DontPull extends Options
+  case object DontPull extends Options
 
   /** Do not update remote */
-  object DontPush extends Options
+  case object DontPush extends Options
 
   /** Environment variable from which to obtain username */
   private val TrickleUser = "TRICKLE_USER"
