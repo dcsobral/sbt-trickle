@@ -37,10 +37,14 @@ trait TrickleKeys {
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
   val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version")
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
+  val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
+  // TODO: trickleUpdateVersion
+  // TODO: log create pull requests task
+  // TODO: create draft PR
 
   // Database
   val trickleDbURI = settingKey[String]("Metadata database locator")
-  val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true")
+  val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true") // TODO: make it work
   val trickleFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
   val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
 

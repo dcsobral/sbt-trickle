@@ -67,12 +67,13 @@ object TricklePlugin extends AutoPlugin {
 
     // Auto bump
     trickleCreatePullRequests / aggregate := false,
-    trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
+    trickleCreatePullRequests := trickleLogUpdatableRepositories.value,
     trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
     trickleOutdatedRepositories / aggregate := false,
     trickleOutdatedRepositories := Autobump.getOutdatedRepositories(trickleFetchDb.value, streams.value.log),
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
+    trickleLogUpdatableRepositories := trickleLogUpdatableRepositoriesTask.value,
     trickleCheckVersion := trickleCheckVersionTask.evaluated,  // default aggregate value
     trickleIntransitiveResolve := false,
 
@@ -94,7 +95,7 @@ object TricklePlugin extends AutoPlugin {
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
   override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
-  lazy val trickleCreatePullRequestsTask: Initialize[Task[Unit]] = Def.task {
+  lazy val trickleLogUpdatableRepositoriesTask: Initialize[Task[Unit]] = Def.task {
     val createPullRequest = trickleCreatePullRequest.value
     val outdated = trickleUpdatableRepositories.value
     val log = streams.value.log

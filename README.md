@@ -14,10 +14,14 @@ Published for SBT 1.3.8.
 The main tasks are as follows:
 
 ```sbt-console
-trickleUpdateSelf          // Update metadata repository with this project's information
-trickleCreatePullRequests  // Creates pull requests to bump versions
-// To guarantee execution order, when called from another task, use:
-Def.sequential(trickleUpdateSelf, trickleCreatePullRequests).value
+// Update metadata repository with this project's information
+trickleUpdateSelf
+
+// Creates pull requests to bump versions
+trickleCreatePullRequests
+
+// Log what needs to be updated (default value for trickleCreatePullRequests)
+trickleLogUpdatableRepositories
 ```
 
 Pull request creation can use the following input task to make sure the dependencies
