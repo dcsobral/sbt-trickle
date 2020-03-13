@@ -20,7 +20,7 @@ trickleUpdateSelf
 // Creates pull requests to bump versions
 trickleCreatePullRequests
 
-// Log what needs to be updated (default value for trickleCreatePullRequests)
+// Log what needs to be updated (default action of trickleCreatePullRequest)
 trickleLogUpdatableRepositories
 ```
 
@@ -34,9 +34,10 @@ trickleCheckVersion org:name:revision {...}
 The following tasks/commands are provided for sbt console usage:
 
 ```sbt-console
-show trickleBuildTopology  // Displays build topology graph in dot file format
-trickleSaveGraph <file>    // Saves a dot file of the build graph topology
-trickleOpenGraph <file>    // Displays build graph topology (requires graphviz)
+trickleLogUpdatableRepositories // Shows what needs updating
+show trickleBuildTopology       // Displays build topology graph in dot file format
+trickleSaveGraph <file>         // Saves a dot file of the build graph topology
+trickleOpenGraph <file>         // Displays build graph topology (requires graphviz)
 ```
 
 ## Configuration
