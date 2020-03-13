@@ -74,7 +74,7 @@ object TricklePlugin extends AutoPlugin {
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
     trickleLogUpdatableRepositories := trickleLogUpdatableRepositoriesTask.value,
-    trickleCheckVersion := trickleCheckVersionTask.evaluated,  // default aggregate value
+    trickleCheckVersion := trickleCheckVersionTask.evaluated,  // uses default aggregate value
     trickleIntransitiveResolve := false,
 
     // Database
@@ -90,6 +90,12 @@ object TricklePlugin extends AutoPlugin {
     trickleGitUpdateMessage := s"${trickleRepositoryName.value} version bump",
     trickleGitUpdateSelf / aggregate := false,
     trickleGitUpdateSelf := trickleGitUpdateSelfTask.value,
+
+    // Other
+    trickleSaveGraph / aggregate := false,
+    trickleSaveGraph := trickleDotGraphTask.evaluated,
+    trickleOpenGraph / aggregate := false,
+    trickleOpenGraph := trickleOpenGraphTask.value,
   )
 
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
@@ -134,6 +140,37 @@ object TricklePlugin extends AutoPlugin {
       }
       sys.error("Dependency check error")
     }
+  }
+
+  lazy val trickleDotGraphTask: Initialize[InputTask[String]] = Def.inputTask {
+    import DefaultParsers._
+    val buildTopology = trickleBuildTopology.value
+    val outputFile = (OptSpace ~> fileParser(baseDirectory.value).?).parsed.map(_.getAbsoluteFile)
+    outputFile.fold(println(buildTopology))(IO.write(_, buildTopology.toString))
+    outputFile.map(_.toString).getOrElse("")
+  }
+
+  lazy val trickleOpenGraphTask: Initialize[Task[Unit]] = Def.task {
+    val dir = "target/trickle" // Can't use settings
+    IO.createDirectory(file(dir).getAbsoluteFile)
+    val dot = trickleSaveGraph.toTask("target/trickle/raw.dot").value
+    val log = streams.value.log
+    val unflattened = (file(dir) / "topology.dot").absolutePath
+    val image = (file(dir) / "topology.dot.png").absolutePath
+    run(log, "unflatten", "-o", unflattened, dot)
+    run(log, "dot", "-O", "-Tpng", unflattened)
+    run(log, "open", image)
+  }
+
+  private def run(log: Logger, cmd: String*): Unit = {
+    import sys.process._
+    val cmdLine = cmd.map {
+      case arg if arg.contains(' ') => s"'$arg'"
+      case arg => arg
+    }.mkString(" ")
+    log.info(cmdLine)
+    val result = cmd.!!
+    if (result.nonEmpty) log.info(result)
   }
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {

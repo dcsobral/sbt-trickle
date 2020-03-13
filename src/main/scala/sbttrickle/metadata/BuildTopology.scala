@@ -142,14 +142,26 @@ object BuildTopology {
 
   def apply(metadata: Seq[RepositoryMetadata]): BuildTopology = new BuildTopology(metadata)
 
+
   // TODO: extract as a configurable class
+  // TODO: url attributes
   def depGraph[N](graph: Graph[N, LkDiEdge]): String = {
     type E[+X] = LkDiEdge[X]
 
     import scalax.collection.io.dot._
     import implicits._
 
-    val root = DotRootGraph(directed = true, id = Some("Build Topology"))
+    implicit def fromTuple[A, B](pair: (A, B))(implicit ev$1: A => Id, ev$2: B => Id): DotAttr = DotAttr(pair._1, pair._2)
+    implicit class AttrStmt(elem: Elem.Type) {
+      def stmt(attrs: DotAttr*): DotAttrStmt = DotAttrStmt(elem, attrs)
+    }
+
+    val root = DotRootGraph(
+      directed = true,
+      id = Some("Build Topology"),
+      strict = false,
+      attrStmts = Seq(Elem.node.stmt("shape" -> "Mrecord")),
+      attrList = Seq("rankdir" ->"LR", "ratio" -> 0.6))
     val topoMap = graph.topologicalSort match {
       case Right(to) =>
         to
@@ -161,23 +173,43 @@ object BuildTopology {
       case Left(cycle) => sys.error(s"Cycle detected at $cycle")
     }
 
-    def isTrans(ie: graph.EdgeT) = ie.source
-      .innerNodeTraverser
-      .withSubgraph(edges = _ != ie)
-      .hasSuccessor(ie.targets.head)
+    def isTransitive(ie: graph.EdgeT): Boolean =
+      ie.source.innerNodeTraverser.withSubgraph(edges = _ != ie).hasSuccessor(ie.targets.head)
 
-    val transitiveEdgeStyle =
-      List(DotAttr("weight", 0), DotAttr("style", "dashed"), DotAttr("color", "gray"))
+    def isOutdated(ie: graph.EdgeT): Boolean = ie.isLabeled && ie.label.toString.nonEmpty
+
+    def transitiveEdgeStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      Seq("weight" -> 0, "style" -> "dashed")
+    }
+
+    def directEdgeStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      Seq("weight" -> graph.maxDegree)
+    }
+
+    def outdatedStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      Seq("label" -> ie.label.toString)
+    }
+
+    def upToDateStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      Seq.empty
+    }
+
+    def edgeColor(ie: graph.EdgeT): Seq[DotAttr] = (isOutdated(ie), isTransitive(ie)) match {
+      case (true, true)  => Seq("color" -> "yellow")
+      case (false, true) => Seq("color" -> "gray")
+      case (true, false) => Seq("color" -> "red")
+      case _             => Seq.empty
+    }
+
+    def edgeAttrs(ie: graph.EdgeT): Seq[DotAttr] = {
+      val color = edgeColor(ie)
+      val transitivity = if (isTransitive(ie)) transitiveEdgeStyle(ie) else directEdgeStyle(ie)
+      val outdated = if (isOutdated(ie)) outdatedStyle(ie) else upToDateStyle(ie)
+      color ++ transitivity ++ outdated
+    }
 
     def edgeStatement(ie: graph.EdgeT): DotEdgeStmt = {
-      val label =
-        if (ie.isLabeled && ie.label.toString.nonEmpty) List(DotAttr("label", ie.label.toString))
-        else Nil
-      val extraAttrs =
-        if (isTrans(ie)) transitiveEdgeStyle
-        else List(DotAttr("weight", graph.maxDegree))
-      val attrs = label ++ extraAttrs
-      DotEdgeStmt(ie.source.toString, ie.target.toString, attrs)
+      DotEdgeStmt(ie.source.toString, ie.target.toString, edgeAttrs(ie))
     }
 
     def edgeTransformer(ie: Graph[N,E]#EdgeT): Option[(DotRootGraph, DotEdgeStmt)] = {
@@ -185,10 +217,11 @@ object BuildTopology {
     }
 
     def cNodeTranslator(in: Graph[N,E]#NodeT): Option[(DotSubGraph, DotNodeStmt)] = {
-      val nodeName = in.toOuter
-      val rank = if (topoMap(nodeName) == 0) "source" else "same"
-      val subGraph = DotSubGraph(root, topoMap(nodeName), Nil, Seq(DotAttr("rank", rank)))
-      Option(subGraph -> DotNodeStmt(nodeName.toString))
+      val node = in.toOuter
+      val name = node.toString
+      val rank = if (topoMap(node) == 0) "source" else "same"
+      val subGraph = DotSubGraph(root, topoMap(node), Nil, Seq("rank" -> rank))
+      Option(subGraph -> DotNodeStmt(name, Seq("label" -> name.replace(':', '|'))))
     }
 
     graph.toDot(root, edgeTransformer, None, Option(cNodeTranslator))

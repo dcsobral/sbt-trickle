@@ -35,6 +35,8 @@ The following tasks/commands are provided for sbt console usage:
 
 ```sbt-console
 show trickleBuildTopology  // Displays build topology graph in dot file format
+trickleSaveGraph <file>    // Saves a dot file of the build graph topology
+trickleOpenGraph <file>    // Displays build graph topology (requires graphviz)
 ```
 
 ## Configuration
