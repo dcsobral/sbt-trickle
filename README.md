@@ -57,31 +57,45 @@ import sbttrickle.git.GitConfig
 import github4s.domain.PullRequest
 
 lazy val trickleSettings: Seq[Def.Setting[_]] = Seq(
-  // Information about your project repository
-  trickleRepositoryName in ThisBuild := "<unique name>",
-  // Information provided to PR creation and check
-  trickleRepositoryURI in ThisBuild := "<url>",
+  /* Basic configuration */
 
-  // Information about the metadata central repository
+  // Centralized metadata database locator
+  // mandatory
   trickleDbURI in ThisBuild := "<url>", // eg, git repository clone url
 
-  // Auto bump
-  // Function which creates the autobump pull requests;  defaults to logging what needs bumping
+  // Information about your project repository
+  // defaults to URI's path, normalized for module name rules
+  trickleRepositoryName in ThisBuild := "<unique name>",
+
+  // Information provided to PR creation and check
+  // defaults to scmInfo.browseUrl or homepage
+  trickleRepositoryURI in ThisBuild := "<url>",
+
+  /* Auto bump */
+
+  // Function which creates the autobump pull requests
+  // defaults to logging what needs bumping
   trickleCreatePullRequest := (??? : OutdatedRepository => Unit),
+
   // Function which checks if an outdated repository has outstanding autobump pull requests
   // defaults to using trickleGithubIsAutobumpPullRequest
   trickleIsAutobumpPullRequestOpen := (??? : OutdatedRepository => Boolean),
+
   // Function which checks if a pull request is an autobump pull request on Github
   // defaults to always returning false, so beware
   trickleGithubIsAutobumpPullRequest := (??? : PullRequest => Boolean),
 
-  // Optional settings
-  // If set to true, does not update remote
-  // or create pull requests
+  /* Optional settings */
+
+  // If set to true, does not update remote or create pull requests
+  // defaults to not set, so it won't override trickleGitConfig values
   trickleDryMode := false,
-  // Used to configure git options such as authentication
-  trickleGitConfig := GitConfig(trickleDbURI.value),
+
+  // Used to configure git options such as remote and authentication
+  trickleGitConfig := GitConfig(trickleDbURI.value).withBranch(trickleGitBranch.?.value),
+
   // Branch to be used in the metadata repository
+  // defaults to not set, in which case "master" is used
   trickleGitBranch := "master"
 )
 ```
@@ -95,7 +109,7 @@ The metadata central repository can be specified with either ssh or https protoc
 
 Authentication for https has to be in the form of user/password, provided either through the URL
 or through the environment variables `TRICKLE_USER` and `TRICKLE_PASSWORD`, which are used as
-fallbacks.
+fallback.
 
 This is compatible with how github uses personal access tokens. User and password can be
 provided using the standard URL syntax of `https://user:password@domain/`. The password part,
@@ -103,14 +117,7 @@ provided using the standard URL syntax of `https://user:password@domain/`. The p
 password through the environment variable.
 
 It is also possible to specify user and password by setting `trickleGitConfig` with user and
-password, or creating and using a `CredentialsProvider`. For example:
-
-```sbt
-import sbttrickle.TricklePlugin.autoImport._
-import sbttrickle.git.GitConfig
-
-trickleGitConfig := GitConfig(trickleDbURI.value, sys.env("GITHUB_ACTOR"), sys.env("GITHUB_TOKEN"))
-```
+password, or creating and using a `CredentialsProvider`.
 
 ### SSH
 
@@ -125,21 +132,39 @@ be passed by overriding `trickleGitConfig`, as seen on the HTTPS section above.
 
 By default, `~/.ssh/identity`, `~/.ssh/id_rsa` and `~/.ssh/id_dsa` will be looked up for
 public/private keys, and must have an empty passphrase. If using another file or a passphrase,
-override `trickleGitConfig` with:
+override `trickleGitConfig`.
+
+In all cases, the public key file must have the same name as the private key file, with `.pub`
+as extension. Newer openssh key formats, that start with `BEGIN OPENSSH PRIVATE KEY`, are not
+supported. See troubleshooting session on how to proceed in that case.
+
+### Example
 
 ```sbt
 import sbttrickle.TricklePlugin.autoImport._
 import sbttrickle.git.GitConfig
 
-trickleGitConfig := GitConfig(trickleDbURI.value)
-  .withIdentityFile(file("path"), Some(f => "passphrase"))
+trickleGitConfig := {
+  val remote = trickleDbURI.value
+  val config =
+    if (remote.startsWith("https:")) {
+      (sys.env.get("GITHUB_ACTOR"), sys.env.get("GITHUB_TOKEN")) match {
+        case (Some(user), Some(token)) => GitConfig(remote, user, token)
+        case _                         => GitConfig(remote)
+      }
+  } else {
+      (sys.env.get("SSH_IDENTITY"), sys.env.get("SSH_PASSPHRASE")) match {
+        case (Some(identity), Some(passphrase)) => GitConfig(remote)
+          .withIdentityFile(file(identity), Some((_: File) => passphrase))
+        case (Some(identity), None)             => GitConfig(remote)
+          .withIdentityFile(file(identity))
+        case _                                  => GitConfig(remote)
+      }
+  }
+  config.withBranch(trickleGitBranch.?.value)
+}
+
 ```
-
-The passphrase parameter is optional.
-
-In all cases, the public key file must have the same name as the private key file, with `.pub`
-as extension. Newer openssh key formats, that start with `BEGIN OPENSSH PRIVATE KEY`, are not
-supported. See troubleshooting session on how to proceed in that case.
 
 ## How does it work
 

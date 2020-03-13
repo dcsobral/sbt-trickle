@@ -33,6 +33,7 @@ import org.eclipse.jgit.transport.{CredentialItem, CredentialsProvider, URIish, 
  * @param pushRetryNumber Number of times a "push" will be retried
  */
 case class GitConfig(remote: String,
+                     branch: String,
                      options: Set[GitConfig.Options],
                      credentialsProvider: Option[CredentialsProvider],
                      identityFile: Option[File],
@@ -65,12 +66,28 @@ case class GitConfig(remote: String,
     }
   }
 
+  // Remote
+
+  def withBranch(branch: String): GitConfig = copy(branch = branch)
+  def withBranch(branch: Option[String]): GitConfig = branch.map(withBranch).getOrElse(this)
+  def withRemote(remote: String): GitConfig = copy(remote = remote)
+
+  // Authentication
+
   def withCredentialsProvider(credentialsProvider: CredentialsProvider): GitConfig =
     copy(credentialsProvider = Option(credentialsProvider))
+
   def withIdentityFile(identityFile: File, passphrase: Option[File => String] = None): GitConfig =
     copy(identityFile = Option(identityFile), passphrase = passphrase)
+
+  // Options
+
+  def withDry(enabled: Boolean): GitConfig = if (enabled) this.withDontPush else this.withPush
+  def withDry(enabled: Option[Boolean]): GitConfig = enabled.map(withDry).getOrElse(this)
   def withDontPush: GitConfig = copy(options = options + DontPush)
   def withDontPull: GitConfig = copy(options = options + DontPull)
+  def withPush: GitConfig = copy(options = options - DontPush)
+  def withPull: GitConfig = copy(options = options - DontPull)
 }
 
 object GitConfig {
@@ -96,7 +113,7 @@ object GitConfig {
    */
   def apply(remote: String): GitConfig = {
     val credentialsProvider = getCredential(remote)
-    GitConfig(remote, Set.empty, credentialsProvider, None, None, 3)
+    GitConfig(remote, "master", Set.empty, credentialsProvider, None, None, 3)
   }
 
   /**
@@ -106,10 +123,9 @@ object GitConfig {
    */
   def apply(remote: String, username: String, password: String): GitConfig = {
     val credentialsProvider = new UsernamePasswordCredentialsProvider(username, password)
-    GitConfig(remote, Set.empty, Some(credentialsProvider), None, None, 3)
+    GitConfig(remote, "master", Set.empty, Some(credentialsProvider), None, None, 3)
   }
 
-  // TODO: move credential management to its own thing
   /**
    * Extracts user name from the provided remote URI, and uses
    * the environment variable `TRICKLE_USER` as fallback

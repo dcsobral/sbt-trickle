@@ -50,10 +50,10 @@ trait GitDb {
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
 
   /** Create repository */
-  def createRepository(base: File, branch: String, config: GitConfig, log: Logger): File = {
+  def createRepository(base: File, config: GitConfig, log: Logger): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
-    initializeRepository(dir, branch)(config)
+    initializeRepository(dir)(config)
     dir
   }
 
@@ -61,19 +61,18 @@ trait GitDb {
    * Pull or clone remote repository.
    *
    * @param base Repository's parent directory (eg: something under `target`)
-   * @param branch Branch that will be checked out; only that branch will be fetched.
    * @return Repository directory
    */
-  def getRepository(base: File, branch: String, config: GitConfig, log: Logger): File = {
+  def getRepository(base: File, config: GitConfig, log: Logger): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
 
     if (!isValidRepository(dir)) {
-      initOrCloneRepository(dir, branch)(config)
-    } else if (isConfigurationCorrect(dir, branch, config)) {
+      initOrCloneRepository(dir)(config)
+    } else if (isConfigurationCorrect(dir, config)) {
       IO.delete(dir)
       IO.createDirectory(dir)
-      initOrCloneRepository(dir, branch)(config)
+      initOrCloneRepository(dir)(config)
     } else {
       Using.file(Git.open(_, FS.DETECTED))(dir){ git =>
         pullRemote(git)(config)
@@ -90,10 +89,9 @@ trait GitDb {
    */
   def getBuildMetadata(repository: File,
                        scalaBinaryVersion: String,
-                       branch: String,
                        config: GitConfig,
                        log: Logger): Seq[RepositoryMetadata] = {
-    if (isValidRepository(repository) && isConfigurationCorrect(repository, branch, config)) {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config)) {
       val dir = repository / s"scala-$scalaBinaryVersion"
       val metadata = dir
         .listFiles(_.ext == "json")
@@ -115,10 +113,9 @@ trait GitDb {
                  repository: File,
                  scalaBinaryVersion: String,
                  commitMsg: String,
-                 branch: String,
                  config: GitConfig,
                  log: Any): File = {
-    if (isValidRepository(repository) && isConfigurationCorrect(repository, branch, config)) {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config)) {
       val sanitizedName = Project.normalizeModuleID(repositoryMetadata.name)
       val relativeName = s"scala-$scalaBinaryVersion/$sanitizedName.json"
       val file: File = repository / relativeName
@@ -151,24 +148,24 @@ trait GitDb {
     }
   }
 
-  private def initOrCloneRepository(dir: File, branch: String)(implicit config: GitConfig): Unit = {
-    if (!config.options(DontPull)) cloneRepository(dir, branch)
-    else initializeRepository(dir, branch)
+  private def initOrCloneRepository(dir: File)(implicit config: GitConfig): Unit = {
+    if (!config.options(DontPull)) cloneRepository(dir)
+    else initializeRepository(dir)
   }
 
-  private def cloneRepository(dir: File, branch: String)(implicit config: GitConfig): Unit = {
+  private def cloneRepository(dir: File)(implicit config: GitConfig): Unit = {
     Git.cloneRepository()
       .setDirectory(dir)
       .setCloneAllBranches(false)
-      .setBranchesToClone(Seq(s"${Constants.R_HEADS}$branch").asJava)
-      .setBranch(branch)
+      .setBranchesToClone(Seq(s"${Constants.R_HEADS}${config.branch}").asJava)
+      .setBranch(config.branch)
       .setURI(config.remoteURI.toASCIIString)
       .configureAuthentication()
       .call()
       .close()
   }
 
-  private def initializeRepository(dir: File, branch: String)(implicit config: GitConfig): Unit = {
+  private def initializeRepository(dir: File)(implicit config: GitConfig): Unit = {
     val git = Git.init()
       .setDirectory(dir)
       .call()
@@ -176,19 +173,19 @@ trait GitDb {
       .setName(Constants.DEFAULT_REMOTE_NAME)
       .setUri(config.remoteURI)
       .call()
-    if (branch != "master") {
+    if (config.branch != "master") {
       git.checkout()
         .setCreateBranch(true)
-        .setName(branch)
+        .setName(config.branch)
         .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
         .call()
     }
   }
 
   /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
-  private def isConfigurationCorrect(repository: File, branch: String, config: GitConfig): Boolean = {
+  private def isConfigurationCorrect(repository: File, config: GitConfig): Boolean = {
     Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
-      val isBranchCorrect = git.getRepository.getBranch == branch
+      val isBranchCorrect = git.getRepository.getBranch == config.branch
       val remotes = git.remoteList().call().asScala
       val origin = remotes.find(_.getName == Constants.DEFAULT_REMOTE_NAME)
       val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
