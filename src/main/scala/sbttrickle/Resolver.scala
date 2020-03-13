@@ -50,7 +50,7 @@ class Resolver private (lm: DependencyResolution, workDir: File, log: Logger, in
   def isArtifactAvailable(artifact: ModuleID): Boolean = {
     val result = lm.retrieve(transitivity((artifact % Provided).force()), None, retrieveFolder, log).isRight
     if (!result) {
-      log.debug(s"$artifact is not available")
+      log.warn(s"$artifact is not available")
     }
     result
   }
