@@ -45,7 +45,7 @@ trait TrickleKeys {
   // Database
   val trickleBuildTopology = taskKey[BuildTopology]("Build topology")
   val trickleDbURI = settingKey[String]("Metadata database locator")
-  val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true") // TODO: make it work
+  val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true")
   val trickleFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
   val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
 

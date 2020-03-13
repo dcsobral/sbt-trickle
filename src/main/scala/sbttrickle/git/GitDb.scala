@@ -70,7 +70,7 @@ trait GitDb {
 
     if (!isValidRepository(dir)) {
       initOrCloneRepository(dir, branch)(config)
-    } else if (Using.file(Git.open(_, FS.DETECTED))(dir)(git => !isRightConfiguration(git, branch)(config))) {
+    } else if (isConfigurationCorrect(dir, branch, config)) {
       IO.delete(dir)
       IO.createDirectory(dir)
       initOrCloneRepository(dir, branch)(config)
@@ -83,27 +83,25 @@ trait GitDb {
     dir
   }
 
-  /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
-  private def isRightConfiguration(git: Git, branch: String)(implicit config: GitConfig): Boolean = {
-    val isBranchCorrect = git.getRepository.getBranch == branch
-    val remotes = git.remoteList().call().asScala
-    val origin = remotes.find(_.getName == Constants.DEFAULT_REMOTE_NAME)
-    val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
-    isBranchCorrect && hasRightURI
-  }
-
   /**
    * Reads all metadata from repository.
    *
    * @param repository Repository directory, as in the return value of `getRepository`
    */
-  def getBuildMetadata(repository: File, scalaBinaryVersion: String, log: Logger): Seq[RepositoryMetadata] = {
-    // TODO: verify valid repository
-    val dir = repository / s"scala-$scalaBinaryVersion"
-    val metadata = dir
-      .listFiles(_.ext == "json")
-      .map(CacheStore(_).read[RepositoryMetadata])
-    metadata
+  def getBuildMetadata(repository: File,
+                       scalaBinaryVersion: String,
+                       branch: String,
+                       config: GitConfig,
+                       log: Logger): Seq[RepositoryMetadata] = {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, branch, config)) {
+      val dir = repository / s"scala-$scalaBinaryVersion"
+      val metadata = dir
+        .listFiles(_.ext == "json")
+        .map(CacheStore(_).read[RepositoryMetadata])
+      metadata
+    } else {
+      sys.error(s"Invalid repository $repository")
+    }
   }
 
   /**
@@ -117,25 +115,29 @@ trait GitDb {
                  repository: File,
                  scalaBinaryVersion: String,
                  commitMsg: String,
+                 branch: String,
                  config: GitConfig,
-                 log: Logger): File = {
-    // FIXME: make repositoryMetadata.name file-safe
-    // TODO: validate "repository" everywhere it appears
-    val relativeName = s"scala-$scalaBinaryVersion/${repositoryMetadata.name}.json"
-    val file: File = repository / relativeName
-    val dir = file.getParentFile
-    IO.createDirectory(dir)
+                 log: Any): File = {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, branch, config)) {
+      val sanitizedName = Project.normalizeModuleID(repositoryMetadata.name)
+      val relativeName = s"scala-$scalaBinaryVersion/$sanitizedName.json"
+      val file: File = repository / relativeName
+      val dir = file.getParentFile
+      IO.createDirectory(dir)
 
-    val store = getStore(file)
+      val store = getStore(file)
 
-    Using.file(Git.open(_, FS.DETECTED)) (repository) { git: Git =>
-      updateIfModified(git, commitMsg){ () =>
-        store.write(repositoryMetadata)
-        modifyIndex(git, relativeName)
-      }(config)
+      Using.file(Git.open(_, FS.DETECTED))(repository) { git: Git =>
+        updateIfModified(git, commitMsg) { () =>
+          store.write(repositoryMetadata)
+          modifyIndex(git, relativeName)
+        }(config)
+      }
+
+      file
+    } else {
+      sys.error(s"Invalid repository $repository")
     }
-
-    file
   }
 
   private def pullRemote(git: Git)(implicit config: GitConfig): Unit = {
@@ -183,15 +185,26 @@ trait GitDb {
     }
   }
 
-  private def isValidRepository(dir: sbt.File): Boolean = {
+  /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
+  private def isConfigurationCorrect(repository: File, branch: String, config: GitConfig): Boolean = {
+    Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
+      val isBranchCorrect = git.getRepository.getBranch == branch
+      val remotes = git.remoteList().call().asScala
+      val origin = remotes.find(_.getName == Constants.DEFAULT_REMOTE_NAME)
+      val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
+      !(isBranchCorrect && hasRightURI)
+    }
+  }
+
+  private def isValidRepository(dir: File): Boolean = {
     isRepository(dir) && wasClonedSuccessfully(dir)
   }
 
-  private def isRepository(dir: sbt.File): Boolean = {
+  private def isRepository(dir: File): Boolean = {
     RepositoryCache.FileKey.isGitRepository(dir / Constants.DOT_GIT, FS.DETECTED)
   }
 
-  private def wasClonedSuccessfully(dir: sbt.File): Boolean = {
+  private def wasClonedSuccessfully(dir: File): Boolean = {
     val repo = new FileRepositoryBuilder().setWorkTree(dir).build()
     repo.getRefDatabase.hasRefs
   }
