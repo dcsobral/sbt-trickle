@@ -67,7 +67,7 @@ object TricklePlugin extends AutoPlugin {
 
     // Auto bump
     trickleCreatePullRequests / aggregate := false,
-    trickleCreatePullRequests := trickleLogUpdatableRepositories.value,
+    trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
     trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
     trickleOutdatedRepositories / aggregate := false,
     trickleOutdatedRepositories := Autobump.getOutdatedRepositories(trickleFetchDb.value, streams.value.log),
@@ -101,12 +101,21 @@ object TricklePlugin extends AutoPlugin {
   override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
   override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
-  lazy val trickleLogUpdatableRepositoriesTask: Initialize[Task[Unit]] = Def.task {
-    val createPullRequest = trickleCreatePullRequest.value
-    val outdated = trickleUpdatableRepositories.value
+  lazy val trickleCreatePullRequestsTask: Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
+    val createPullRequest =
+      if (trickleDryMode.value) Autobump.logOutdatedRepository(log) _
+      else trickleCreatePullRequest.value
+    val outdated = trickleUpdatableRepositories.value
     Autobump.createPullRequests(outdated, createPullRequest, log)
   } tag Tags.Network
+
+  lazy val trickleLogUpdatableRepositoriesTask: Initialize[Task[Unit]] = Def.task {
+    val log = streams.value.log
+    val createPullRequest = Autobump.logOutdatedRepository(log) _
+    val outdated = trickleUpdatableRepositories.value
+    Autobump.createPullRequests(outdated, createPullRequest, log)
+  }
 
   lazy val trickleUpdatableRepositoriesTask: Initialize[Task[Seq[OutdatedRepository]]] = Def.task {
     val outdated = trickleOutdatedRepositories.value
@@ -116,7 +125,6 @@ object TricklePlugin extends AutoPlugin {
     val workDir = trickleCache.value
     val log = streams.value.log
     Autobump.getUpdatableRepositories(outdated, isPullRequestOpen, lm, intransitive, workDir, log)
-
   } tag (Tags.Update, Tags.Network)
 
   lazy val trickleCheckVersionTask: Initialize[InputTask[Unit]] = Def.inputTask {
