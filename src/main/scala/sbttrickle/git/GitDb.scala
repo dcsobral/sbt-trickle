@@ -55,7 +55,7 @@ trait GitDb {
   def createRepository(base: File, config: GitConfig, log: Logger): File = {
     val dir = base / "metadataGitRepo"
     IO.createDirectory(dir)
-    initializeRepository(dir)(config)
+    initializeRepository(dir, log)(config)
     dir
   }
 
@@ -70,14 +70,16 @@ trait GitDb {
     IO.createDirectory(dir)
 
     if (!isValidRepository(dir)) {
-      initOrCloneRepository(dir)(config)
-    } else if (isConfigurationCorrect(dir, config)) {
+      log.debug("No metadata repository found; making a new clone")
+      initOrCloneRepository(dir, log)(config)
+    } else if (isConfigurationCorrect(dir, config, log)) {
+      log.info("invalid metadata repository found; making a new clone")
       IO.delete(dir)
       IO.createDirectory(dir)
-      initOrCloneRepository(dir)(config)
+      initOrCloneRepository(dir, log)(config)
     } else {
       Using.file(Git.open(_, FS.DETECTED))(dir){ git =>
-        pullRemote(git)(config)
+        pullRemote(git, log)(config)
       }
     }
 
@@ -93,7 +95,7 @@ trait GitDb {
                        scalaBinaryVersion: String,
                        config: GitConfig,
                        log: Logger): Seq[RepositoryMetadata] = {
-    if (isValidRepository(repository) && isConfigurationCorrect(repository, config)) {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
       val dir = repository / s"scala-$scalaBinaryVersion"
       val metadata = dir
         .listFiles(_.ext == "json")
@@ -117,7 +119,7 @@ trait GitDb {
                  commitMsg: String,
                  config: GitConfig,
                  log: Logger): File = {
-    if (isValidRepository(repository) && isConfigurationCorrect(repository, config)) {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
       val sanitizedName = Project.normalizeModuleID(repositoryMetadata.name)
       val relativeName = s"scala-$scalaBinaryVersion/$sanitizedName.json"
       val file: File = repository / relativeName
@@ -139,7 +141,7 @@ trait GitDb {
     }
   }
 
-  private def pullRemote(git: Git)(implicit config: GitConfig): Unit = {
+  private def pullRemote(git: Git, log: Logger)(implicit config: GitConfig): Unit = {
     if (!config.options(DontPull)) {
       val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).configureAuthentication().call()
       if (!pullResult.isSuccessful) {
@@ -147,15 +149,20 @@ trait GitDb {
         git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
         sys.error(s"Unable to sync with remote: $messages")
       }
+    } else {
+      log.debug("skipping pull")
     }
   }
 
-  private def initOrCloneRepository(dir: File)(implicit config: GitConfig): Unit = {
-    if (!config.options(DontPull)) cloneRepository(dir)
-    else initializeRepository(dir)
+  private def initOrCloneRepository(dir: File, log: Logger)(implicit config: GitConfig): Unit = {
+    if (!config.options(DontPull)) cloneRepository(dir, log)
+    else {
+      log.info("skipping pull: initializing new repository instead of cloning")
+      initializeRepository(dir, log)
+    }
   }
 
-  private def cloneRepository(dir: File)(implicit config: GitConfig): Unit = {
+  private def cloneRepository(dir: File, log: Logger)(implicit config: GitConfig): Unit = {
     Git.cloneRepository()
       .setDirectory(dir)
       .setCloneAllBranches(false)
@@ -165,9 +172,10 @@ trait GitDb {
       .configureAuthentication()
       .call()
       .close()
+    log.debug(s"cloned new metadata repository at $dir")
   }
 
-  private def initializeRepository(dir: File)(implicit config: GitConfig): Unit = {
+  private def initializeRepository(dir: File, log: Logger)(implicit config: GitConfig): Unit = {
     val git = Git.init()
       .setDirectory(dir)
       .call()
@@ -182,15 +190,19 @@ trait GitDb {
         .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
         .call()
     }
+    log.info(s"initialized new metadata repository with remote ${config.remote} on branch ${config.branch}")
   }
 
   /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
-  private def isConfigurationCorrect(repository: File, config: GitConfig): Boolean = {
+  private def isConfigurationCorrect(repository: File, config: GitConfig, log: Logger): Boolean = {
     Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
-      val isBranchCorrect = git.getRepository.getBranch == config.branch
+      val localBranch = git.getRepository.getBranch
+      val isBranchCorrect = localBranch == config.branch
       val remotes = git.remoteList().call().asScala
       val origin = remotes.find(_.getName == Constants.DEFAULT_REMOTE_NAME)
       val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
+      if (!isBranchCorrect) log.debug(s"Metadata repository branch is $localBranch; expected ${config.branch}")
+      if (!hasRightURI) log.debug(s"Metadata repository does not have remote ${config.remoteURI}")
       !(isBranchCorrect && hasRightURI)
     }
   }
@@ -209,13 +221,17 @@ trait GitDb {
   }
 
   /** Check whether the update would introduce changes and, if so, commit and push to remote. */
-  private def updateIfModified(git: Git, commitMsg: String)(prepareCommit: () => Unit)(implicit config: GitConfig): Unit = {
+  private def updateIfModified(git: Git, commitMsg: String, log: Logger)
+                              (prepareCommit: () => Unit)
+                              (implicit config: GitConfig): Unit = {
     prepareCommit()
     if (isModified(git)) {
-      commitAndPush(git){ () =>
+      commitAndPush(git, log){ () =>
         prepareCommit()
         git.commit().setMessage(commitMsg).call()
       }
+    } else {
+      log.info("No self metadata changes; skipping push")
     }
   }
 
@@ -241,10 +257,10 @@ trait GitDb {
   /**
    * Try to commit and push changes to the remote, and reset the repository to HEAD in unsuccessful.
    */
-  private def commitAndPush(git: Git)(commit: () => Unit)(implicit config: GitConfig): Unit = {
+  private def commitAndPush(git: Git, log: Logger)(commit: () => Unit)(implicit config: GitConfig): Unit = {
     val originalRef = git.getRepository.findRef("HEAD").getObjectId.getName
     try {
-      tryUpdateRemote(git, commit, originalRef, 0)
+      tryUpdateRemote(git, commit, originalRef, 0, log)
     } catch {
       case NonFatal(ex) =>
         git.reset().setMode(ResetCommand.ResetType.HARD).setRef(originalRef).call()
@@ -256,15 +272,14 @@ trait GitDb {
    * Repeats a cycle of reset / pull / commit / push until either successful or `retries` >= `PushRetryNumber`.
    */
   @scala.annotation.tailrec
-  private def tryUpdateRemote(git: Git, commit: () => Unit, originalRef: String, retries: Int)
+  private def tryUpdateRemote(git: Git, commit: () => Unit, originalRef: String, retries: Int, log: Logger)
                              (implicit config: GitConfig): Unit = {
     git.reset().setMode(ResetCommand.ResetType.HARD).setRef(originalRef).call()
 
-    pullRemote(git)
+    pullRemote(git, log)
 
     commit()
 
-    // TODO: log pushed commit hash id
     val pushResults = try {
       git.push().setForce(false).configureAuthentication().setDryRun(config.options(DontPush)).call()
     } catch {
@@ -276,11 +291,15 @@ trait GitDb {
 
     if (errors.nonEmpty) {
       if (errors.forall(_.isNonFatal) && retries < config.pushRetryNumber) {
-        tryUpdateRemote(git, commit, originalRef, retries + 1)
+        log.debug(s"push failed; retrying($retries")
+        tryUpdateRemote(git, commit, originalRef, retries + 1, log)
       } else {
         val messages = errors.map(e => s"${e.getStatus}: ${e.getMessage}").mkString("\n")
         sys.error(s"Unable to update remote after $retries retries: $messages")
       }
+    } else {
+      val head = git.getRepository.findRef("HEAD").getObjectId.getName
+      log.info(s"Updated metadata repository. ${config.branch} is now at $head")
     }
   }
 
