@@ -19,6 +19,7 @@ package sbttrickle.git
 import java.io.File
 
 import org.eclipse.jgit.api._
+import org.eclipse.jgit.api.errors.TransportException
 import org.eclipse.jgit.lib.{Constants, RepositoryCache}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport._
@@ -263,9 +264,14 @@ trait GitDb {
 
     commit()
 
-    // TODO: capture org.eclipse.jgit.api.errors.TransportException: https://github.com/org/metadata-repo.git: git-upload-pack not permitted on 'https://github.com/org/metadata-repo.git/'
     // TODO: log pushed commit hash id
-    val pushResults = git.push().setForce(false).configureAuthentication().setDryRun(config.options(DontPush)).call()
+    val pushResults = try {
+      git.push().setForce(false).configureAuthentication().setDryRun(config.options(DontPush)).call()
+    } catch {
+      case ex: TransportException if ex.getMessage.contains("git-upload-pack not permitted") =>
+        val authenticationException = new Exception(s"Credentials do not have permission to push to ${config.remoteURI}", ex)
+        throw authenticationException
+    }
     val errors = RichRemoteRefUpdate.getPushErrors(pushResults.asScala)
 
     if (errors.nonEmpty) {
