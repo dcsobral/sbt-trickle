@@ -42,6 +42,7 @@ import sbttrickle.metadata.RepositoryMetadata
 object GitDb extends GitDb
 
 // TODO: caching
+// TODO: tag & push HEAD with PRs that have been created
 
 /** Provides methods to implement trickle's database through a git repository. */
 trait GitDb {
@@ -262,6 +263,8 @@ trait GitDb {
 
     commit()
 
+    // TODO: capture org.eclipse.jgit.api.errors.TransportException: https://github.com/org/metadata-repo.git: git-upload-pack not permitted on 'https://github.com/org/metadata-repo.git/'
+    // TODO: log pushed commit hash id
     val pushResults = git.push().setForce(false).configureAuthentication().setDryRun(config.options(DontPush)).call()
     val errors = RichRemoteRefUpdate.getPushErrors(pushResults.asScala)
 
