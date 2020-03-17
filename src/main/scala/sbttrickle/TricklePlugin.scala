@@ -51,6 +51,7 @@ object TricklePlugin extends AutoPlugin {
     trickleGitDbRepository := trickleGitDbRepositoryTask.value,
     trickleGitConfig / aggregate := false,
     trickleGitConfig := GitConfig(trickleDbURI.value).withBranch(trickleGitBranch.?.value),
+    trickleGitReset := trickleGitResetTask.value,
 
     // Other
     trickleCache := (LocalRootProject / target).value / "trickle",
@@ -202,6 +203,14 @@ object TricklePlugin extends AutoPlugin {
     GitDb.getRepository(cache, config, log)
   } tag Tags.Network
 
+  lazy val trickleGitResetTask: Initialize[InputTask[Unit]] = Def.inputTask {
+    val commit = gitCheckoutParser.parsed
+    val cache =  trickleCache.value
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
+    val log = streams.value.log
+    GitDb.reset(commit, cache, config, log)
+  } tag Tags.Network
+
   lazy val trickleSelfMetadataTask: Initialize[RepositoryMetadata] = Def.setting {
     val name = trickleRepositoryName.value
     val thisRepositoryUrl = trickleRepositoryURI.value
@@ -245,10 +254,10 @@ object TricklePlugin extends AutoPlugin {
       .getOrElse(baseDirectory.value.name)
   }
 
-  lazy val checkVersionParser: Initialize[Parser[Seq[(String, String, String)]]] = Def.setting {
+  def checkVersionParser: Initialize[Parser[Seq[(String, String, String)]]] = Def.setting {
     import DefaultParsers._
-    val lib = libraryDependencies.value.map(m => ModuleID(m.organization, m.name, m.revision)).distinct
 
+    val lib = libraryDependencies.value.map(m => ModuleID(m.organization, m.name, m.revision)).distinct
     def select1(items: Iterable[String]): Parser[String] = token(StringBasic.examples(FixedSetExamples(items)))
     def sep: Parser[Any] = OptSpace ~ '%' ~ OptSpace | ':'
     def moduleParser: Parser[(String, String, String)] = for {
@@ -260,5 +269,18 @@ object TricklePlugin extends AutoPlugin {
     } yield (org, name, revision)
 
     (Space ~> moduleParser).+
+  }
+
+  def gitCheckoutParser: Initialize[Parser[String]] = Def.setting {
+    import DefaultParsers._
+
+    val cache = trickleCache.value
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
+    val log = sLog.value
+    val repository = GitDb.getRepository(cache, config, log)
+    val commits = GitDb.commits(repository, config, log)
+    val tags = GitDb.tags(repository, config, log)
+
+    Space ~> token(NotQuoted.examples(FixedSetExamples(commits ++ tags)))
   }
 }

@@ -20,7 +20,7 @@ import java.io.File
 
 import org.eclipse.jgit.api._
 import org.eclipse.jgit.api.errors.TransportException
-import org.eclipse.jgit.lib.{Constants, RepositoryCache}
+import org.eclipse.jgit.lib.{Constants, ObjectId, RepositoryCache}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport._
 import org.eclipse.jgit.util.FS
@@ -51,9 +51,11 @@ trait GitDb {
   private[git] def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
 
+  private val MetadataGitRepo = "metadataGitRepo"
+
   /** Create repository */
   def createRepository(base: File, config: GitConfig, log: Logger): File = {
-    val dir = base / "metadataGitRepo"
+    val dir = base / MetadataGitRepo
     IO.createDirectory(dir)
     initializeRepository(dir, log)(config)
     dir
@@ -66,7 +68,7 @@ trait GitDb {
    * @return Repository directory
    */
   def getRepository(base: File, config: GitConfig, log: Logger): File = {
-    val dir = base / "metadataGitRepo"
+    val dir = base / MetadataGitRepo
     IO.createDirectory(dir)
 
     if (!isValidRepository(dir)) {
@@ -136,6 +138,54 @@ trait GitDb {
       }
 
       file
+    } else {
+      sys.error(s"Invalid repository $repository")
+    }
+  }
+
+  /**
+   * All commits reachable from HEAD.
+   *
+   * @param repository Repository directory, as in the return value of `getRepository`
+   */
+  def commits(repository: File, config: GitConfig, log: Logger): Seq[String] = {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
+      Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
+        val head = git.getRepository.resolve(Constants.HEAD)
+        git.log.add(head).call().asScala.map(_.getName).toSeq
+      }
+    } else {
+      sys.error(s"Invalid repository $repository")
+    }
+  }
+
+  /**
+   * All tags.
+   *
+   * @param repository Repository directory, as in the return value of `getRepository`
+   */
+  def tags(repository: File, config: GitConfig, log: Logger): Seq[String] = {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
+      Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
+        git.tagList().call().asScala.map(_.getName.substring(Constants.R_TAGS.length))
+      }
+    } else {
+      sys.error(s"Invalid repository $repository")
+    }
+  }
+
+  /**
+   * Resets HEAD to `commit`.
+   *
+   * @param commit sha-1 or reference (branches, tags and remotes), possibly abbreviated
+   * @param repository Repository directory, as in the return value of `getRepository`
+   */
+  def reset(commit: String, repository: File, config: GitConfig, log: Logger): Unit = {
+    if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
+      Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
+        val sha1 = if (ObjectId.isId(commit)) commit else git.getRepository.findRef(commit).getObjectId.getName
+        git.reset().setMode(ResetCommand.ResetType.HARD).setRef(sha1).call()
+      }
     } else {
       sys.error(s"Invalid repository $repository")
     }

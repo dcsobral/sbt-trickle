@@ -52,11 +52,12 @@ trait TrickleKeys {
   val trickleGitBranch = settingKey[String]("Branch containing the trickle database")
   val trickleGitConfig = settingKey[GitConfig]("Provides configuration for the git tasks")
   val trickleGitDbRepository = taskKey[File]("Trickle db git repository")
+  val trickleGitReset = inputKey[Unit]("Checkout a specific commit in the trickle database")
   val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
   val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
   // TODO: create empty repo task
-  // TODO: check out specific version
   // TODO: tag metadata commits
+  // TODO: show metadata commits (messages, tags)
 
   // Github Pull Requests
   val trickleGithubIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs on Github")
