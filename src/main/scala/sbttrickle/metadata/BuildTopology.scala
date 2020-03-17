@@ -24,7 +24,7 @@ import scalax.collection.edge.LkDiEdge
 
 import scala.collection.immutable.HashMap
 
-//import sbt.{ModuleID => _, _}
+import sbt.Logger
 import sbt.librarymanagement.ModuleID
 
 // TODO: in-memory cache
@@ -65,9 +65,8 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
 
   def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
-  // TODO: debug logging explaining topology ordering
-  def outdatedRepositories: Seq[OutdatedRepository] = {
-    getOutdatedRepositories(topology).map {
+  def outdatedRepositories(log: Logger): Seq[OutdatedRepository] = {
+    getOutdatedRepositories(topology, log).map {
       case (repository, outdatedDependencies) =>
         val enrichedOutdatedDependencies = outdatedDependencies.map {
           case Label(src, dst, _) =>
@@ -78,41 +77,61 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
     }
   }
 
-  private def getOutdatedRepositories(topology: Topology): Seq[(String, Set[Label])] = {
+  private def getOutdatedRepositories(topology: Topology, log: Logger): Seq[(String, Set[Label])] = {
     val componentsTO: Seq[topology.LayeredTopologicalOrder[topology.NodeT]] =
       topology.componentTraverser().topologicalSortByComponent.toSeq.map {
         case Right(v)         => v.toLayered
         case Left(repository) =>
           sys.error(s"Detected dependency cycle starting on repository $repository")
       }
-    val outdated = componentsTO.flatMap(componentSort => getOutdatedRepositoriesOnComponent(topology)(componentSort.toSeq))
+    log.debug(s"${componentsTO.size} components found")
+    val outdated = componentsTO.zipWithIndex.flatMap {
+      case (componentSort, index) =>
+      log.debug(s"analyzing component $index")
+      getOutdatedRepositoriesOnComponent(topology, log)(componentSort.toSeq)
+    }
     val result = outdated.map {
       case (node, edge) => (node.toOuter, edge.map(_.label : Label))
     }
     if (outdated.isEmpty) {
-      result
+      Seq.empty
     } else {
       val outdatedNodes = outdated.map(_._1)
-      val newTopology = topology -- outdatedNodes.flatMap(_.innerNodeTraverser)
-      result ++ getOutdatedRepositories(newTopology)
+      val transitiveClosure = outdatedNodes.flatMap(_.innerNodeTraverser)
+      log.debug(s"outdated nodes: ${outdatedNodes.map(_.toOuter).mkString(" ")}")
+      log.debug(s"removing transitive closure from topology: ${transitiveClosure.map(_.toOuter).mkString(" ")}")
+      val newTopology = topology -- transitiveClosure
+      result ++ getOutdatedRepositories(newTopology, log)
     }
   }
 
   @scala.annotation.tailrec
-  private def getOutdatedRepositoriesOnComponent(topology: Topology)(to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
-    if (to.isEmpty) Seq.empty
-    else {
+  private def getOutdatedRepositoriesOnComponent(topology: Topology, log: Logger)
+                                                (to: Seq[(Int, Iterable[topology.NodeT])]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+    if (to.isEmpty) {
+      log.debug("no more layers")
+      Seq.empty
+    } else {
       val (layer, repositories) = to.head
-      if (layer == 0) getOutdatedRepositoriesOnComponent(topology)(to.tail)
-      else {
+      log.debug(s"analysing layer $layer: ${repositories.map(_.toOuter).mkString(" ")}")
+
+      if (layer == 0) {
+        log.debug("skipping roots")
+        getOutdatedRepositoriesOnComponent(topology, log)(to.tail)
+      } else {
         val outdated = getOutdatedRepositoriesOnLayer(topology)(repositories.toSeq)
-        if (outdated.isEmpty) getOutdatedRepositoriesOnComponent(topology)(to.tail)
-        else outdated
+        if (outdated.isEmpty) {
+          log.debug(s"no outdated repositories found on layer $layer")
+          getOutdatedRepositoriesOnComponent(topology, log)(to.tail)
+        } else {
+          outdated
+        }
       }
     }
   }
 
-  private def getOutdatedRepositoriesOnLayer(topology: Topology)(repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
+  private def getOutdatedRepositoriesOnLayer(topology: Topology)
+                                            (repositories: Seq[topology.NodeT]): Seq[(topology.NodeT, Set[topology.EdgeT])] = {
     for {
       repository <- repositories
       outdated = repository.incoming.filter(!_.upToDate)

@@ -42,7 +42,7 @@ trait Autobump {
   def getOutdatedRepositories(metadata: Seq[RepositoryMetadata], log: Logger): Seq[OutdatedRepository] = {
     log.debug(s"Got ${metadata.size} repositories")
     val topology = BuildTopology(metadata)
-    val outdatedRepositories = topology.outdatedRepositories
+    val outdatedRepositories = topology.outdatedRepositories(log)
     log.debug(s"${outdatedRepositories.size} repositories need updating")
     outdatedRepositories
   }
