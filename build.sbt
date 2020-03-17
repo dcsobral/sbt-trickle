@@ -26,6 +26,8 @@ ThisBuild / homepage := Some(url("https://github.com/dcsobral/sbt-trickle"))
 
 sbtPlugin := true
 
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+
 libraryDependencies ++= Seq(
   "org.scala-graph" %% "graph-core" % "1.13.1",
   "org.scala-graph" %% "graph-dot" % "1.13.0",

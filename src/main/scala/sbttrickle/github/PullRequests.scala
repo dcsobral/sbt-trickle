@@ -16,13 +16,20 @@
 
 package sbttrickle.github
 
-import cats.effect.{ContextShift, IO}
+import org.http4s.Uri
+
+import cats.data.EitherT
+import cats.effect.{ContextShift, IO, Sync}
 import cats.effect.IO.contextShift
+import cats.implicits._
 import github4s.Github
-import github4s.domain.{PRFilter, PRFilterOpen, PullRequest}
-import github4s.GithubResponses.{GHResponse, GHResult}
+import github4s.domain.{Pagination, PRFilter, PRFilterOpen, PullRequest}
+import github4s.GithubResponses.{GHException, GHResult}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.higherKinds
+import scala.util.Try
+import scala.util.matching.Regex
 
 import sbt.Logger
 
@@ -38,28 +45,60 @@ object PullRequests {
                               isAutobumpPullRequest: PullRequest => Boolean,
                               log: Logger): Boolean = {
     val result = for {
-      (owner, repo) <- OwnerAndRepository(repositoryURL).toRight(makeException(repositoryURL))
-      GHResult(pullRequests, _, _) <- listPullRequests(token, owner, repo)
+      (owner, repo) <- ownerAndRepository(repositoryURL)
+      pullRequests <- listPullRequests(token, owner, repo)
     } yield pullRequests.exists(isAutobumpPullRequest)
 
-    result match {
-      case Right(flag)     => flag
-      case Left(exception) => throw exception
-    }
+    result.unsafeRunSync()
+  }
+
+  private def ownerAndRepository(repositoryURL: String): IO[(String, String)] = {
+    IO.fromEither(OwnerAndRepository(repositoryURL).toRight(makeException(repositoryURL)))
   }
 
   private def makeException(repositoryURL: String): Exception = {
     new Exception(s"Unable to extract owner and repository name from '$repositoryURL'")
   }
 
-  // FIXME: github4s doesn't auto-paginate
-  private def listPullRequests(token: String, owner: String, repo: String): GHResponse[List[PullRequest]] = {
-    Github[IO](Some(token))
-      .pullRequests
-      .listPullRequests(owner, repo, onlyOpen).unsafeRunSync()
+  private def listPullRequests(token: String, owner: String, repo: String): IO[List[PullRequest]] = {
+    autoPaginate { pagination =>
+      Github[IO](Some(token)).pullRequests.listPullRequests(owner, repo, onlyOpen, Some(pagination))
+    }.value.flatMap(IO.fromEither)
   }
 
-  private implicit class FilterableEither[E, T](x: Either[E, T]) {
-    def withFilter(p: T => Boolean): Either[E, T] = x
+  // Based on https://github.com/BenFradet/dashing/blob/e452e9c1d7032ec8199ed9de370680be945a16ee/server/src/main/scala/dashing/server/utils.scala#L112-L135
+
+  private def autoPaginate[F[_]: Sync, T]
+      (call: Pagination => F[Either[GHException, GHResult[List[T]]]]): EitherT[F, GHException, List[T]] = {
+    for {
+      firstPage <- EitherT(call(Pagination(1, 100)))
+      pages = getPages(firstPage).map(Pagination(_, 100))
+      restPages <- EitherT(pages.traverse(call(_)).map(_.sequence))
+    } yield firstPage.result ++ restPages.flatMap(_.result)
   }
+
+  private def getPages[T, F[_] : Sync](firstPage: GHResult[List[T]]): List[Int] = {
+    getNrPages(firstPage.headers) match {
+      case Some(n) if n >= 2 => (2 to n).toList
+      case _                 => Nil
+    }
+  }
+
+  private final case class Relation(name: String, url: String)
+
+  def getNrPages(headers: Map[String, String]): Option[Int] = {
+    for {
+      h <- headers.map { case (k, v) => k.toLowerCase -> v }.get("link")
+      relations = h.split(", ").flatMap {
+        case relPattern(url, name) => Some(Relation(name, url))
+        case _                     => None
+      }
+      lastRelation <- relations.find(_.name == "last")
+      uri <- Uri.fromString(lastRelation.url).toOption
+      lastPage <- uri.params.get("page")
+      nrPages <- Try(lastPage.toInt).toOption
+    } yield nrPages
+  }
+
+  private val relPattern: Regex = """<(.*?)>; rel="(\w+)"""".r
 }
