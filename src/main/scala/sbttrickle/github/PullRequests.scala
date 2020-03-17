@@ -67,7 +67,7 @@ object PullRequests {
   }
 
   // Based on https://github.com/BenFradet/dashing/blob/e452e9c1d7032ec8199ed9de370680be945a16ee/server/src/main/scala/dashing/server/utils.scala#L112-L135
-
+  // FIXME: pre-computed last page might change
   private def autoPaginate[F[_]: Sync, T]
       (call: Pagination => F[Either[GHException, GHResult[List[T]]]]): EitherT[F, GHException, List[T]] = {
     for {
