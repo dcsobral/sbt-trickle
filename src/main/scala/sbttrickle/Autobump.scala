@@ -16,6 +16,8 @@
 
 package sbttrickle
 
+import java.io.File
+
 import sbt.Logger
 import sbt.librarymanagement.DependencyResolution
 
@@ -24,19 +26,20 @@ import sbttrickle.metadata.{BuildTopology, OutdatedRepository, RepositoryMetadat
 trait Autobump {
   /**
    *
-   * @param outdatedRepositories
    * @param createPullRequest
+   * @param outdatedRepositories
    */
   def createPullRequests(outdatedRepositories: Seq[OutdatedRepository],
-                         createPullRequest: OutdatedRepository => Unit,
+                         createPullRequest: OutdatedRepository => Boolean,
                          log: Logger): Unit = {
-    outdatedRepositories.foreach(createPullRequest)
+    outdatedRepositories.foreach { repo =>
+      if (!createPullRequest(repo)) log.warn(s"Could not create PR for ${repo.repository}")
+    }
   }
 
   /**
    *
    * @param metadata
-   * @param log
    * @return
    */
   def getOutdatedRepositories(metadata: Seq[RepositoryMetadata], log: Logger): Seq[OutdatedRepository] = {
@@ -52,30 +55,25 @@ trait Autobump {
    * @param outdatedRepositories
    * @param dependencyResolution
    * @param workDir
-   * @param log
    * @return
    */
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
-                               isPullRequestOpen: OutdatedRepository => Boolean,
                                dependencyResolution: DependencyResolution,
                                intransitive: Boolean,
-                               workDir: sbt.File,
+                               workDir: File,
                                log: Logger): Seq[OutdatedRepository] = {
     val lm = new Resolver(dependencyResolution, workDir, log)
     outdatedRepositories.map { o =>
       val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
-      .filterNot(isPullRequestOpen)
-    // TODO: log exclusions
   }
 
   /**
    *
-   * @param log
    * @param outdatedRepository
    */
-  def logOutdatedRepository(log: Logger)(outdatedRepository: OutdatedRepository): Unit = {
+  def logOutdatedRepository(log: Logger)(outdatedRepository: OutdatedRepository): Boolean = {
     log.info(s"Bump ${outdatedRepository.repository}:")
     outdatedRepository.updates.groupBy(_.module).foreach {
       case (module, updates) =>
@@ -88,6 +86,7 @@ trait Autobump {
             }
         }
     }
+    false
   }
 }
 

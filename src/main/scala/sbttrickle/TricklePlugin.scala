@@ -43,7 +43,6 @@ object TricklePlugin extends AutoPlugin {
     trickleRepositoryURI := trickleRepositoryUriSetting.value, // TODO: force use on gitconfig
 
     // Auto bump
-    trickleIsAutobumpPullRequestOpen := trickleIsPullRequestOpenSetting.value,
     trickleGithubIsAutobumpPullRequest := ((_: PullRequest) => false),
 
     // Git Database
@@ -115,12 +114,11 @@ object TricklePlugin extends AutoPlugin {
 
   lazy val trickleUpdatableRepositoriesTask: Initialize[Task[Seq[OutdatedRepository]]] = Def.task {
     val outdated = trickleOutdatedRepositories.value
-    val isPullRequestOpen = trickleIsAutobumpPullRequestOpen.value
     val lm = dependencyResolution.value
     val intransitive = trickleIntransitiveResolve.value
     val workDir = trickleCache.value
     val log = streams.value.log
-    Autobump.getUpdatableRepositories(outdated, isPullRequestOpen, lm, intransitive, workDir, log)
+    Autobump.getUpdatableRepositories(outdated, lm, intransitive, workDir, log)
   } tag (Tags.Update, Tags.Network)
 
   lazy val trickleCheckVersionTask: Initialize[InputTask[Unit]] = Def.inputTask {
