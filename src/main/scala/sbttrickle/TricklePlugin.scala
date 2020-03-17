@@ -40,7 +40,7 @@ object TricklePlugin extends AutoPlugin {
   lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
     // Self
     trickleRepositoryName := trickleRepositoryNameSetting.value,
-    trickleRepositoryURI := trickleRepositoryUriSetting.value, // TODO: force use on gitconfig
+    trickleRepositoryURI := trickleRepositoryUriSetting.value,
 
     // Auto bump
     trickleIsAutobumpPullRequestOpen := trickleIsPullRequestOpenSetting.value,
@@ -182,7 +182,7 @@ object TricklePlugin extends AutoPlugin {
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
     val commitMessage = trickleGitUpdateMessage.value
-    val config = trickleGitConfig.value.withDry(trickleDryMode.?.value)
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, log)
   } tag Tags.Network
@@ -190,14 +190,14 @@ object TricklePlugin extends AutoPlugin {
   lazy val trickleFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
-    val config = trickleGitConfig.value.withDry(trickleDryMode.?.value)
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.getBuildMetadata(repository, sv, config, log)
   }
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
     val cache = trickleCache.value
-    val config = trickleGitConfig.value.withDry(trickleDryMode.?.value)
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.getRepository(cache, config, log)
   } tag Tags.Network
