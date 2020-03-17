@@ -116,7 +116,7 @@ trait GitDb {
                  scalaBinaryVersion: String,
                  commitMsg: String,
                  config: GitConfig,
-                 log: Any): File = {
+                 log: Logger): File = {
     if (isValidRepository(repository) && isConfigurationCorrect(repository, config)) {
       val sanitizedName = Project.normalizeModuleID(repositoryMetadata.name)
       val relativeName = s"scala-$scalaBinaryVersion/$sanitizedName.json"
@@ -127,7 +127,7 @@ trait GitDb {
       val store = getStore(file)
 
       Using.file(Git.open(_, FS.DETECTED))(repository) { git: Git =>
-        updateIfModified(git, commitMsg) { () =>
+        updateIfModified(git, commitMsg, log) { () =>
           store.write(repositoryMetadata)
           modifyIndex(git, relativeName)
         }(config)
