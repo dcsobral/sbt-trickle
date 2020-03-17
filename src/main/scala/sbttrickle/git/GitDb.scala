@@ -72,7 +72,7 @@ trait GitDb {
     if (!isValidRepository(dir)) {
       log.debug("No metadata repository found; making a new clone")
       initOrCloneRepository(dir, log)(config)
-    } else if (isConfigurationCorrect(dir, config, log)) {
+    } else if (!isConfigurationCorrect(dir, config, log)) {
       log.info("invalid metadata repository found; making a new clone")
       IO.delete(dir)
       IO.createDirectory(dir)
@@ -203,7 +203,7 @@ trait GitDb {
       val hasRightURI = origin.exists(_.getURIs.asScala.contains(config.remoteURI))
       if (!isBranchCorrect) log.debug(s"Metadata repository branch is $localBranch; expected ${config.branch}")
       if (!hasRightURI) log.debug(s"Metadata repository does not have remote ${config.remoteURI}")
-      !(isBranchCorrect && hasRightURI)
+      isBranchCorrect && hasRightURI
     }
   }
 
