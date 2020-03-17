@@ -40,7 +40,7 @@ object TricklePlugin extends AutoPlugin {
   lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
     // Self
     trickleRepositoryName := trickleRepositoryNameSetting.value,
-    trickleRepositoryURI := trickleRepositoryUriSetting.value,
+    trickleRepositoryURI := trickleRepositoryUriSetting.value, // TODO: force use on gitconfig
 
     // Auto bump
     trickleIsAutobumpPullRequestOpen := trickleIsPullRequestOpenSetting.value,

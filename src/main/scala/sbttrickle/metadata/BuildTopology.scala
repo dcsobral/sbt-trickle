@@ -65,6 +65,7 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
 
   def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
+  // TODO: debug logging explaining topology ordering
   def outdatedRepositories: Seq[OutdatedRepository] = {
     getOutdatedRepositories(topology).map {
       case (repository, outdatedDependencies) =>

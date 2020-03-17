@@ -57,6 +57,8 @@ trait TrickleKeys {
   val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
   val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
   // TODO: create empty repo task
+  // TODO: check out specific version
+  // TODO: tag metadata commits
 
   // Github Pull Requests
   val trickleGithubIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs on Github")
