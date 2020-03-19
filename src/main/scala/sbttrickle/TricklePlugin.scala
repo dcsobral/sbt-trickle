@@ -89,11 +89,13 @@ object TricklePlugin extends AutoPlugin {
     trickleBuildTopology / aggregate := false,
     trickleBuildTopology := BuildTopology(trickleFetchDb.value), // TODO: cache
     trickleFetchDb / aggregate := false,
-    trickleFetchDb := trickleFetchDbTask.value,
+    trickleFetchDb := trickleGitFetchDb.value,
     trickleUpdateSelf / aggregate := false,
     trickleUpdateSelf := trickleGitUpdateSelf.value,
 
     // Git Database
+    trickleGitFetchDb / aggregate := false,
+    trickleGitFetchDb := trickleGitFetchDbTask.value,
     trickleGitUpdateMessage / aggregate := false,
     trickleGitUpdateMessage := s"${trickleRepositoryName.value} version bump",
     trickleGitUpdateSelf / aggregate := false,
@@ -196,7 +198,7 @@ object TricklePlugin extends AutoPlugin {
     GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, log)
   } tag (Tags.Network, GitLock)
 
-  lazy val trickleFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
+  lazy val trickleGitFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
     val repository = trickleGitDbRepository.value
     val sv = scalaBinaryVersion.value
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
