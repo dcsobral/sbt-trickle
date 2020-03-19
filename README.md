@@ -34,10 +34,20 @@ trickleCheckVersion org:name:revision {...}
 The following tasks/commands are provided for sbt console usage:
 
 ```sbt-console
-trickleLogUpdatableRepositories // Shows what needs updating
-show trickleBuildTopology       // Displays build topology graph in dot file format
-trickleSaveGraph <file>         // Saves a dot file of the build graph topology
-trickleOpenGraph <file>         // Displays build graph topology (requires graphviz)
+// Shows what needs updating
+trickleLogUpdatableRepositories
+
+// Displays build topology graph in dot file format
+show trickleBuildTopology
+
+// Saves a dot file of the build graph topology
+trickleSaveGraph <file>
+
+// Opens build graph topology image (requires graphviz, "open")
+trickleOpenGraph
+
+// Resets the metadata repository to a commit, to inspect past topologies
+trickleGitReset <sha1-or-tag>
 ```
 
 ## Configuration
