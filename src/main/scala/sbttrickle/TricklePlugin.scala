@@ -18,7 +18,9 @@ package sbttrickle
 
 import github4s.domain.PullRequest
 
-import sbt._
+import scala.util.Try
+
+import sbt.{Def, _}
 import sbt.Def.Initialize
 import sbt.Keys._
 import sbt.complete.{DefaultParsers, FixedSetExamples, Parser}
@@ -277,16 +279,24 @@ object TricklePlugin extends AutoPlugin {
     (Space ~> moduleParser).+
   }
 
+  /**
+   * Autocompletes sha1 or reference names, with suggestions from commits reachable from HEAD, and
+   * existing tags.
+   */
   def gitCheckoutParser: Initialize[Parser[String]] = Def.setting {
     import DefaultParsers._
 
     val cache = trickleCache.value
-    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(true)
     val log = sLog.value
-    val repository = GitDb.getRepository(cache, config, log)
-    val commits = GitDb.commits(repository, config, log)
-    val tags = GitDb.tags(repository, config, log)
 
-    Space ~> token(NotQuoted.examples(FixedSetExamples(commits ++ tags)))
+    val suggestions = Try {
+      val repository = GitDb.getRepository(cache, config, log)
+      val commits = GitDb.commits(repository, config, log)
+      val tags = GitDb.tags(repository, config, log)
+      commits ++ tags
+    }.getOrElse(Seq.empty)
+
+    token(Space ~> NotQuoted.examples(FixedSetExamples(suggestions)))
   }
 }
