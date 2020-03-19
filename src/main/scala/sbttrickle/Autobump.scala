@@ -34,7 +34,6 @@ trait Autobump {
    * @param workDir Where to download the artifacts to (cannot be empty)
    */
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
-                               isPullRequestOpen: OutdatedRepository => Boolean,
                                dependencyResolution: DependencyResolution,
                                intransitive: Boolean,
                                workDir: File,
@@ -44,14 +43,12 @@ trait Autobump {
       val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
-      .filterNot(isPullRequestOpen)
-    // TODO: log exclusions
   }
 
   /**
    * Log what needs to be changed and in what modules (projects).
    */
-  def logOutdatedRepository(log: Logger)(outdatedRepository: OutdatedRepository): Unit = {
+  def logOutdatedRepository(log: Logger)(outdatedRepository: OutdatedRepository): Boolean = {
     log.info(s"Bump ${outdatedRepository.repository}:")
     outdatedRepository.updates.groupBy(_.module).foreach {
       case (module, updates) =>
@@ -64,6 +61,7 @@ trait Autobump {
             }
         }
     }
+    false
   }
 
   /**

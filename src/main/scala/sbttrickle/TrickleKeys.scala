@@ -30,9 +30,8 @@ trait TrickleKeys {
   val trickleSelfMetadata = settingKey[RepositoryMetadata]("Project dependency metadata")
 
   // Auto bump
-  val trickleCreatePullRequest = settingKey[OutdatedRepository => Unit]("Function to create a pull request for one repository")
+  val trickleCreatePullRequest = settingKey[OutdatedRepository => Boolean]("Function to create a pull request for one repository")
   val trickleCreatePullRequests = taskKey[Unit]("Create autobump pull requests on repositories without them")
-  val trickleIsAutobumpPullRequestOpen = settingKey[OutdatedRepository => Boolean]("Predicate for trickle-created PRs")
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
   val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version") // TODO: rename
