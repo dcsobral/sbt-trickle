@@ -18,7 +18,7 @@ package sbttrickle.metadata
 
 import sjsonnew.JsonFormat
 
-case class RepositoryMetadata(name: String, url: String, projectMetadata: Seq[ModuleMetadata])
+final case class RepositoryMetadata(name: String, url: String, projectMetadata: Seq[ModuleMetadata])
 
 object RepositoryMetadata extends sbt.librarymanagement.LibraryManagementCodec {
   implicit val metadataIso: JsonFormat[RepositoryMetadata] =

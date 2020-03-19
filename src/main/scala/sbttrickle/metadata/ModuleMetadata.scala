@@ -20,7 +20,7 @@ import sjsonnew.JsonFormat
 
 import sbt._
 
-case class ModuleMetadata(id: String, artifact: ModuleID, dependencies: Seq[ModuleID])
+final case class ModuleMetadata(id: String, artifact: ModuleID, dependencies: Seq[ModuleID])
 
 object ModuleMetadata extends sbt.librarymanagement.LibraryManagementCodec {
   implicit val metadataIso: JsonFormat[ModuleMetadata] =
