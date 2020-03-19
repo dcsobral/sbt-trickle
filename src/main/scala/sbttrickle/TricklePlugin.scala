@@ -74,16 +74,24 @@ object TricklePlugin extends AutoPlugin {
     trickleSelfMetadata := trickleSelfMetadataTask.value,
 
     // Auto bump
+    trickleIntransitiveResolve := false,
+    trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
+    trickleCheckVersion / aggregate := true,
+    trickleCheckVersion := trickleCheckSessionDependencies.evaluated,
     trickleCreatePullRequests / aggregate := false,
     trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
-    trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
+    trickleLogUpdatableRepositories / aggregate := false,
+    trickleLogUpdatableRepositories := trickleLogUpdatableRepositoriesTask.value,
+    trickleOutdatedDependencies / aggregate := false,
+    trickleOutdatedDependencies := trickleOutdatedDependenciesTask.value,
     trickleOutdatedRepositories / aggregate := false,
-    trickleOutdatedRepositories := Autobump.getOutdatedRepositories(trickleFetchDb.value, streams.value.log),
+    trickleOutdatedRepositories := trickleBuildTopology.value.outdatedRepositories(streams.value.log),
+    trickleUpdateSessionDependencies / aggregate := false,
+    trickleUpdateSessionDependencies := Autobump.updateSessionDependencies(trickleOutdatedDependenciesTask.value, state.value),
+    trickleUpdateDependencies / aggregate := false,
+    trickleUpdateDependencies := trickleUpdateSessionDependencies.value,
     trickleUpdatableRepositories / aggregate := false,
     trickleUpdatableRepositories := trickleUpdatableRepositoriesTask.value,
-    trickleLogUpdatableRepositories := trickleLogUpdatableRepositoriesTask.value,
-    trickleCheckVersion := trickleCheckVersionTask.evaluated,  // uses default aggregate value
-    trickleIntransitiveResolve := false,
 
     // Database
     trickleBuildTopology / aggregate := false,
@@ -132,27 +140,19 @@ object TricklePlugin extends AutoPlugin {
     Autobump.getUpdatableRepositories(outdated, isPullRequestOpen, lm, intransitive, workDir, log)
   } tag (Tags.Update, Tags.Network)
 
-  lazy val trickleCheckVersionTask: Initialize[InputTask[Unit]] = Def.inputTask {
+  lazy val trickleCheckSessionDependencies: Initialize[InputTask[Unit]] = Def.inputTask {
     val log = streams.value.log
-    val prj = moduleName.value
-    val modules = checkVersionParser.parsed
-    val lib = libraryDependencies.value
-    val missing = modules.filter {
-      case (org, name, rev) => lib.exists(m => m.organization == org && m.name == name && m.revision != rev)
-    }
-    if (missing.nonEmpty) {
-      missing.foreach {
-        case (org, name, rev) =>
-          val existing = lib.filter(m => m.organization == org && m.name == name).map(_.revision).distinct
-          log.error(s"$prj / trickleCheckVersion")
-          if (existing.isEmpty) {
-            log.error(s"$prj $org:$name:* not found")
-          } else {
-            log.error(s"$org:$name:$rev not found; in use: ${existing.mkString(" ")}")
-          }
-      }
-      sys.error("Dependency check error")
-    }
+    val project = moduleName.value
+    val modules = checkSessionDependencies.parsed
+    val dependencies = libraryDependencies.value
+    Autobump.checkSessionDependencies(project, dependencies, modules, log)
+  }
+
+  lazy val trickleOutdatedDependenciesTask: Initialize[Task[Set[ModuleUpdateData]]] = Def.task {
+    val buildTopology = trickleBuildTopology.value
+    val repository = trickleRepositoryName.value
+    val updates = buildTopology.updates(repository)
+    updates
   }
 
   lazy val trickleDotGraphTask: Initialize[InputTask[String]] = Def.inputTask {
@@ -175,6 +175,7 @@ object TricklePlugin extends AutoPlugin {
     run(log, "open", image)
   }
 
+  /** Executes external command, logging command line and output, and throwing an exception in case of error. */
   private def run(log: Logger, cmd: String*): Unit = {
     import sys.process._
     val cmdLine = cmd.map {
@@ -264,7 +265,15 @@ object TricklePlugin extends AutoPlugin {
       .getOrElse(baseDirectory.value.name)
   }
 
-  def checkVersionParser: Initialize[Parser[Seq[(String, String, String)]]] = Def.setting {
+  /**
+   * Autocompletes modules with suggestions taken from libraryDependencies settings on all projects.
+   *
+   * Modules can be given in either `org:name:rev` or `org % name % rev` format. Spaces are optional
+   * in either case, and each component may optionally be quoted, but not the whole module declaration.
+   *
+   * @return (organization, name, version)
+   */
+  def checkSessionDependencies: Initialize[Parser[Seq[(String, String, String)]]] = Def.setting {
     import DefaultParsers._
 
     val lib = libraryDependencies.value.map(m => ModuleID(m.organization, m.name, m.revision)).distinct

@@ -21,7 +21,7 @@ import github4s.domain.PullRequest
 import sbt._
 
 import sbttrickle.git.GitConfig
-import sbttrickle.metadata.{BuildTopology, OutdatedRepository, RepositoryMetadata}
+import sbttrickle.metadata.{BuildTopology, ModuleUpdateData, OutdatedRepository, RepositoryMetadata}
 
 trait TrickleKeys {
   // Self
@@ -35,10 +35,12 @@ trait TrickleKeys {
   val trickleIsAutobumpPullRequestOpen = settingKey[OutdatedRepository => Boolean]("Predicate for trickle-created PRs")
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
-  val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version")
+  val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version") // TODO: rename
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
   val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
-  // TODO: trickleUpdateVersion which is the "set" version of trickleCheckVersion's "get"
+  val trickleOutdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of updates available on this repository")
+  val trickleUpdateDependencies = taskKey[Unit]("Updates all managed dependencies to the latest version")
+  val trickleUpdateSessionDependencies = taskKey[StateTransform]("Updates all managed dependencies to the latest version")
 
   // Database
   val trickleBuildTopology = taskKey[BuildTopology]("Build topology")

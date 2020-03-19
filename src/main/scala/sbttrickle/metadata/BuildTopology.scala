@@ -65,15 +65,40 @@ class BuildTopology(metadata: Seq[RepositoryMetadata]) {
 
   def keyFor(module: ModuleID): ModuleID = ModuleID(module.organization, module.name, "")
 
+  /**
+   * Computes the list of updates needed by a repository.
+   */
+  def updates(repository: RepositoryName): Set[ModuleUpdateData] = {
+    val node = topology.find(repository).getOrElse(sys.error(s"Repository $repository is not in the build topology!"))
+    val outdated = node.incoming.filter(!_.upToDate)
+    val result = outdated.map(_.label: Label)
+    enrichDependencies(result)
+  }
+
+  /**
+   * Computes the outdated repositories that can be updated in the build topology.
+   *
+   * A repository is outdated if any of its dependencies within the graph (that is, which are provided
+   * by another repository in the graph) has a revision that differs from the revision of the module
+   * that provides it. It does not matter which version is newer, or if there's any compatibility between
+   * them.
+   *
+   * A repository can be updated if none of the other repositories it depends on within the graph is
+   * outdated.
+   */
   def outdatedRepositories(log: Logger): Seq[OutdatedRepository] = {
     getOutdatedRepositories(topology, log).map {
       case (repository, outdatedDependencies) =>
-        val enrichedOutdatedDependencies = outdatedDependencies.map {
-          case Label(src, dst, _) =>
-            val (dstRepository, dstModule) = moduleMap(keyFor(dst))
-            ModuleUpdateData(src, dst, dstModule.artifact.revision, dstRepository, urlFor(dstRepository))
-        }
+        val enrichedOutdatedDependencies = enrichDependencies(outdatedDependencies)
         OutdatedRepository(repository, urlFor(repository),enrichedOutdatedDependencies)
+    }
+  }
+
+  private def enrichDependencies(outdatedDependencies: Set[Label]): Set[ModuleUpdateData] = {
+    outdatedDependencies.map {
+      case Label(src, dst, _) =>
+        val (dstRepository, dstModule) = moduleMap(keyFor(dst))
+        ModuleUpdateData(src, dst, dstModule.artifact.revision, dstRepository, urlFor(dstRepository))
     }
   }
 

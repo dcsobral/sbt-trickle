@@ -16,50 +16,28 @@
 
 package sbttrickle
 
-import sbt.Logger
-import sbt.librarymanagement.DependencyResolution
+import java.io.File
 
-import sbttrickle.metadata.{BuildTopology, OutdatedRepository, RepositoryMetadata}
+import sbt.{BuiltinCommands, Def, Logger, Project, ProjectRef, State, StateTransform}
+import sbt.librarymanagement.{DependencyResolution, ModuleID}
+import sbt.Keys.{libraryDependencies, projectID}
+import sbt.internal.BuildStructure
+
+import sbttrickle.metadata.{ModuleUpdateData, OutdatedRepository}
 
 trait Autobump {
   /**
+   * Filters outdated repositories to exclude those depending on artifacts that are not yet available.
    *
-   * @param outdatedRepositories
-   * @param createPullRequest
-   */
-  def createPullRequests(outdatedRepositories: Seq[OutdatedRepository],
-                         createPullRequest: OutdatedRepository => Unit,
-                         log: Logger): Unit = {
-    outdatedRepositories.foreach(createPullRequest)
-  }
-
-  /**
-   *
-   * @param metadata
-   * @param log
-   * @return
-   */
-  def getOutdatedRepositories(metadata: Seq[RepositoryMetadata], log: Logger): Seq[OutdatedRepository] = {
-    log.debug(s"Got ${metadata.size} repositories")
-    val topology = BuildTopology(metadata)
-    val outdatedRepositories = topology.outdatedRepositories(log)
-    log.debug(s"${outdatedRepositories.size} repositories need updating")
-    outdatedRepositories
-  }
-
-  /**
-   *
-   * @param outdatedRepositories
-   * @param dependencyResolution
-   * @param workDir
-   * @param log
-   * @return
+   * @param dependencyResolution Resolution engine to be used (eg: coursier, ivy)
+   * @param intransitive Do not resolve transitive dependencies, if true
+   * @param workDir Where to download the artifacts to (cannot be empty)
    */
   def getUpdatableRepositories(outdatedRepositories: Seq[OutdatedRepository],
                                isPullRequestOpen: OutdatedRepository => Boolean,
                                dependencyResolution: DependencyResolution,
                                intransitive: Boolean,
-                               workDir: sbt.File,
+                               workDir: File,
                                log: Logger): Seq[OutdatedRepository] = {
     val lm = new Resolver(dependencyResolution, workDir, log)
     outdatedRepositories.map { o =>
@@ -71,9 +49,7 @@ trait Autobump {
   }
 
   /**
-   *
-   * @param log
-   * @param outdatedRepository
+   * Log what needs to be changed and in what modules (projects).
    */
   def logOutdatedRepository(log: Logger)(outdatedRepository: OutdatedRepository): Unit = {
     log.info(s"Bump ${outdatedRepository.repository}:")
@@ -87,6 +63,96 @@ trait Autobump {
               log.info(s"      ${updated.dependency} => ${updated.newRevision}")
             }
         }
+    }
+  }
+
+  /**
+   * Updates library dependencies on the current session.
+   */
+  def updateSessionDependencies(updates: Set[ModuleUpdateData], currentState: State): StateTransform = {
+    val extracted = Project.extract(currentState)
+    val structure = extracted.structure
+    val updatedDependenciesForProject = getUpdatedDependenciesForProject(updates, structure) _
+    val newSettings = structure.allProjectRefs.flatMap(updatedDependenciesForProject)
+    val newSession = extracted.session.appendSettings(newSettings)
+    val newState = extracted.appendWithSession(newSettings.map(_._1), currentState)
+    val newStateWithSession = BuiltinCommands.reapply(newSession, structure, newState)
+
+    new StateTransform(newStateWithSession)
+  }
+
+  /**
+   * Generates settings that update dependencies on a module (project).
+   *
+   * @param structure Typically, Project.extract(state.value).structure
+   * @param thisRef   Module for which to produce the updates
+   * @return Both the settings and the sbt commands that would produce them
+   */
+  private def getUpdatedDependenciesForProject(updates: Set[ModuleUpdateData], structure: BuildStructure)
+                                              (thisRef: ProjectRef): Seq[(Def.Setting[Seq[ModuleID]], Seq[String])] = {
+    val thisModule = projectID.in(thisRef).get(structure.data).get
+    val libDeps = libraryDependencies.in(thisRef).get(structure.data).getOrElse(Seq.empty)
+
+    val knownRevisions: Map[(String, String), String] = updates
+      .filter(_.module == thisModule)
+      .groupBy(mud => (mud.dependency.organization, mud.dependency.name))
+      .mapValues(_.map(_.newRevision))
+      .map {
+        case (key, revisions) =>
+          assert(revisions.size == 1, s"$key has multiple revisions: $revisions")
+          key -> revisions.head
+      }
+
+    val newDependencies = libDeps.map { dep =>
+      knownRevisions.get((dep.organization, dep.name)) match {
+        case Some(newRevision) => dep.withRevision(newRevision)
+        case None              => dep
+      }
+    }
+
+    val declStart = s"${thisRef.project}/libraryDependencies := (${thisRef.project}/libraryDependencies).value.map {"
+    val declBody = knownRevisions.map {
+      case ((org, name), rev) => s"""  case d if d.organization == "$org" && d.name == "$name" => d.withRevision($rev)"""
+    }.toSeq
+    val declEnd = Seq(
+      "  case d => d",
+      "}"
+    )
+    val decls = (declStart +: declBody) ++ declEnd
+
+    if (declBody.nonEmpty) Seq((libraryDependencies.in(thisRef) := newDependencies, decls))
+    else Seq.empty
+  }
+
+  /**
+   * Validates that dependencies against modules.
+   *
+   * Validation fails if, for a module in modules, a dependency on dependencies can be found that shares
+   * the same organization and name but has a different version.
+   *
+   * This method works like an assertion, failing by throwing an exception. It will log all dependencies
+   * it finds that fail validation, including expected and actual revisions.
+   *
+   * @param project Used just on logging, to indicate which module (project) the dependencies belong to
+   * @throws java.lang.RuntimeException if validation fails.
+   */
+  @throws[RuntimeException]
+  def checkSessionDependencies(project: String,
+                               dependencies: Seq[ModuleID],
+                               modules: Seq[(String, String, String)],
+                               log: Logger): Unit = {
+    val missing = modules.filter {
+      case (org, name, rev) => dependencies.exists(m => m.organization == org && m.name == name && m.revision != rev)
+    }
+
+    if (missing.nonEmpty) {
+      missing.foreach {
+        case (org, name, rev) =>
+          val outdatedVersions = dependencies.filter(m => m.organization == org && m.name == name).map(_.revision).distinct
+          val inUse = outdatedVersions.mkString(" ")
+          log.error(s"[$project/trickleSessionDependencies] $org:$name:$rev not found; in use: $inUse")
+      }
+      sys.error("Dependency check error")
     }
   }
 }
