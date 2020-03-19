@@ -113,15 +113,13 @@ object TricklePlugin extends AutoPlugin {
     val createPullRequest =
       if (trickleDryMode.?.value.getOrElse(false)) Autobump.logOutdatedRepository(log) _
       else trickleCreatePullRequest.value
-    val outdated = trickleUpdatableRepositories.value
-    Autobump.createPullRequests(outdated, createPullRequest, log)
+    trickleUpdatableRepositories.value.foreach(createPullRequest)
   } tag Tags.Network
 
   lazy val trickleLogUpdatableRepositoriesTask: Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
     val createPullRequest = Autobump.logOutdatedRepository(log) _
-    val outdated = trickleUpdatableRepositories.value
-    Autobump.createPullRequests(outdated, createPullRequest, log)
+    trickleUpdatableRepositories.value.foreach(createPullRequest)
   }
 
   lazy val trickleUpdatableRepositoriesTask: Initialize[Task[Seq[OutdatedRepository]]] = Def.task {
