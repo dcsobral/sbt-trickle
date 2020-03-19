@@ -30,12 +30,17 @@ import sbttrickle.metadata._
 
 object TricklePlugin extends AutoPlugin {
   object autoImport extends TrickleKeys {
+    /** Tag used to indicate tasks that need an exclusive git lock on the metadata repository. */
+    val GitLock = Tags.Tag("GitLock")
   }
 
   import autoImport._
 
   override def requires: Plugins = JvmPlugin
   override def trigger: PluginTrigger = allRequirements
+  override lazy val globalSettings: Seq[Def.Setting[_]] = baseGlobalSettings
+  override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
+  override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
   lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
     // Self
@@ -51,10 +56,14 @@ object TricklePlugin extends AutoPlugin {
     trickleGitDbRepository := trickleGitDbRepositoryTask.value,
     trickleGitConfig / aggregate := false,
     trickleGitConfig := GitConfig(trickleDbURI.value).withBranch(trickleGitBranch.?.value),
-    trickleGitReset := trickleGitResetTask.value,
+    trickleGitReset := trickleGitResetTask.evaluated,
 
     // Other
     trickleCache := (LocalRootProject / target).value / "trickle",
+  )
+
+  lazy val baseGlobalSettings: Seq[Def.Setting[Seq[Tags.Rule]]] = Seq(
+    concurrentRestrictions += Tags.exclusive(GitLock)
   )
 
   lazy val baseProjectSettings: Seq[Def.Setting[_]] = Seq(
@@ -94,9 +103,6 @@ object TricklePlugin extends AutoPlugin {
     trickleOpenGraph / aggregate := false,
     trickleOpenGraph := trickleOpenGraphTask.value,
   )
-
-  override lazy val buildSettings: Seq[Def.Setting[_]] = baseBuildSettings
-  override lazy val projectSettings: Seq[Def.Setting[_]] = baseProjectSettings
 
   lazy val trickleCreatePullRequestsTask: Initialize[Task[Unit]] = Def.task {
     val log = streams.value.log
@@ -186,7 +192,7 @@ object TricklePlugin extends AutoPlugin {
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.updateSelf(repositoryMetadata, repository, sv, commitMessage, config, log)
-  } tag Tags.Network
+  } tag (Tags.Network, GitLock)
 
   lazy val trickleFetchDbTask: Initialize[Task[Seq[RepositoryMetadata]]] = Def.task {
     val repository = trickleGitDbRepository.value
@@ -201,7 +207,7 @@ object TricklePlugin extends AutoPlugin {
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.getRepository(cache, config, log)
-  } tag Tags.Network
+  } tag (Tags.Network, GitLock)
 
   lazy val trickleGitResetTask: Initialize[InputTask[Unit]] = Def.inputTask {
     val commit = gitCheckoutParser.parsed
@@ -209,7 +215,7 @@ object TricklePlugin extends AutoPlugin {
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
     GitDb.reset(commit, cache, config, log)
-  } tag Tags.Network
+  } tag (Tags.Network, GitLock)
 
   lazy val trickleSelfMetadataTask: Initialize[RepositoryMetadata] = Def.setting {
     val name = trickleRepositoryName.value
