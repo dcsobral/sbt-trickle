@@ -47,7 +47,7 @@ object TricklePlugin extends AutoPlugin {
   lazy val baseBuildSettings: Seq[Def.Setting[_]] = Seq(
     // Self
     trickleRepositoryName := trickleRepositoryNameSetting.value,
-    trickleRepositoryURI := trickleRepositoryUriSetting.value, // TODO: force use on gitconfig
+    trickleRepositoryURI := trickleRepositoryUriSetting.value,
 
     // Auto bump
     trickleGithubIsAutobumpPullRequest := ((_: PullRequest) => false),
@@ -75,8 +75,8 @@ object TricklePlugin extends AutoPlugin {
     // Auto bump
     trickleIntransitiveResolve := false,
     trickleCreatePullRequest := Autobump.logOutdatedRepository(sLog.value),
-    trickleCheckVersion / aggregate := true,
-    trickleCheckVersion := trickleCheckSessionDependencies.evaluated,
+    trickleCheckDependencies / aggregate := true,
+    trickleCheckDependencies := trickleCheckDependenciesTask.evaluated,
     trickleCreatePullRequests / aggregate := false,
     trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
     trickleLogUpdatableRepositories / aggregate := false,
@@ -138,7 +138,7 @@ object TricklePlugin extends AutoPlugin {
     Autobump.getUpdatableRepositories(outdated, lm, intransitive, workDir, log)
   } tag (Tags.Update, Tags.Network)
 
-  lazy val trickleCheckSessionDependencies: Initialize[InputTask[Unit]] = Def.inputTask {
+  lazy val trickleCheckDependenciesTask: Initialize[InputTask[Unit]] = Def.inputTask {
     val log = streams.value.log
     val project = moduleName.value
     val modules = checkSessionDependencies.parsed

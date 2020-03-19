@@ -34,7 +34,7 @@ trait TrickleKeys {
   val trickleCreatePullRequests = taskKey[Unit]("Create autobump pull requests on repositories without them")
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
-  val trickleCheckVersion = inputKey[Unit]("Verifies that a dependency has the expected version") // TODO: rename
+  val trickleCheckDependencies = inputKey[Unit]("Verifies that a dependency has the expected version")
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
   val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
   val trickleOutdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of updates available on this repository")
