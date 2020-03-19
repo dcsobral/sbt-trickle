@@ -203,7 +203,9 @@ object TricklePlugin extends AutoPlugin {
     val sv = scalaBinaryVersion.value
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
-    GitDb.getBuildMetadata(repository, sv, config, log)
+    val repositories = GitDb.getBuildMetadata(repository, sv, config, log)
+    val selfMetadata = trickleSelfMetadata.value
+    selfMetadata +: repositories.filterNot(_.name == selfMetadata.name)
   }
 
   lazy val trickleGitDbRepositoryTask: Initialize[Task[File]] = Def.task {
