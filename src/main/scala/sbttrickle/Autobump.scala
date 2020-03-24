@@ -40,12 +40,18 @@ trait Autobump {
                                workDir: File,
                                log: Logger): Seq[OutdatedRepository] = {
     val lm = new Resolver(dependencyResolution, workDir, log)
-    outdatedRepositories.map { o =>
+    val (artifactsNotAvailable, artifactsAvailable) = outdatedRepositories.map { o =>
       val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)
-    }.filterNot(_.updates.isEmpty)
-      .filterNot(isPullRequestOpen)
-    // TODO: log exclusions
+    }.partition(_.updates.isEmpty)
+    artifactsNotAvailable.foreach { outdatedRepository =>
+      log.info(s"Skipping ${outdatedRepository.repository} because it depends on artifacts that are not yet available")
+    }
+    val (pullRequestOpen, pullRequestNotOpen) = artifactsAvailable.partition(isPullRequestOpen)
+    pullRequestOpen.foreach { outdatedRepository =>
+      log.info(s"Skipping ${outdatedRepository.repository} because there's already an open pull request for it")
+    }
+    pullRequestNotOpen
   }
 
   /**
