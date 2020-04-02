@@ -362,7 +362,7 @@ trait GitDb {
   private object RichRemoteRefUpdate {
     import org.eclipse.jgit.transport.RemoteRefUpdate.Status._
     val successStatus = Set(OK, UP_TO_DATE)
-    val nonFatalStatus = Set(REJECTED_NONFASTFORWARD, REJECTED_REMOTE_CHANGED)
+    val nonFatalStatus = Set(REJECTED_NONFASTFORWARD, REJECTED_REMOTE_CHANGED, REJECTED_OTHER_REASON)
 
     def getPushErrors(pushResults: Iterable[PushResult]): Seq[RemoteRefUpdate] = {
       val errors = for {
