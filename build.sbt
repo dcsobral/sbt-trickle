@@ -16,6 +16,10 @@
 
 name := "sbt-trickle"
 
+// TODO: CONTRIBUTING.md
+// TODO: automated build
+// TODO: sign tags/releases
+// TODO: release notes
 // TODO: work on a command/alias that makes release work for me
 ThisBuild / baseVersion := "0.3"
 ThisBuild / organization := "com.dcsobral"
@@ -23,6 +27,7 @@ ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
 ThisBuild / bintrayVcsUrl := Some("git@github.com:dcsobral/sbt-trickle.git")
 ThisBuild / homepage := Some(url("https://github.com/dcsobral/sbt-trickle"))
+// TODO: apiURL
 
 sbtPlugin := true
 
