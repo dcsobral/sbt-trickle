@@ -38,7 +38,9 @@ trait Autobump {
                                intransitive: Boolean,
                                workDir: File,
                                log: Logger): Seq[OutdatedRepository] = {
-    val lm = new Resolver(dependencyResolution, workDir, log)
+    val lm =
+      if (intransitive) new Resolver(dependencyResolution, workDir, log).intransitive()
+      else new Resolver(dependencyResolution, workDir, log)
     outdatedRepositories.map { o =>
       val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
       o.copy(updates = available)

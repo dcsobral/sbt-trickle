@@ -41,6 +41,12 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-effect" % "2.1.2",
 )
 
+scalacOptions ~= { options: Seq[String] =>
+  options.filterNot(Set(
+    "-Ywarn-value-discard" // It's annoying to get rid of it on Scala 2.12
+  ))
+}
+
 initialCommands +=
   """
     |import java.io.File
