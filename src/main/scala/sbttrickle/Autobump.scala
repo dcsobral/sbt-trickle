@@ -40,7 +40,7 @@ trait Autobump {
                                log: Logger): Seq[OutdatedRepository] = {
     val lm = new Resolver(dependencyResolution, workDir, log)
     outdatedRepositories.map { o =>
-      val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
+      val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency.withRevision(updateInfo.newRevision)))
       o.copy(updates = available)
     }.filterNot(_.updates.isEmpty)
   }
