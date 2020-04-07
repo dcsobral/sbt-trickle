@@ -91,7 +91,7 @@ trait GitDb {
   /**
    * Reads all metadata from repository.
    *
-   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param repository Repository directory, as in the return value of [[#getRepository]]
    */
   def getBuildMetadata(repository: File,
                        scalaBinaryVersion: String,
@@ -111,7 +111,7 @@ trait GitDb {
   /**
    * Save metadata to repository and update remote if changed.
    *
-   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param repository Repository directory, as in the return value of [[#getRepository]]
    * @param commitMsg Commit message in the git format
    * @return File where metadata was saved
    */
@@ -146,7 +146,7 @@ trait GitDb {
   /**
    * All commits reachable from HEAD.
    *
-   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param repository Repository directory, as in the return value of [[#getRepository]]
    */
   def commits(repository: File, config: GitConfig, log: Logger): Seq[String] = {
     if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
@@ -162,7 +162,7 @@ trait GitDb {
   /**
    * All tags.
    *
-   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param repository Repository directory, as in the return value of [[#getRepository]]
    */
   def tags(repository: File, config: GitConfig, log: Logger): Seq[String] = {
     if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
@@ -178,7 +178,7 @@ trait GitDb {
    * Resets HEAD to `commit`.
    *
    * @param commit sha-1 or reference (branches, tags and remotes), possibly abbreviated
-   * @param repository Repository directory, as in the return value of `getRepository`
+   * @param repository Repository directory, as in the return value of [[#getRepository]]
    */
   def reset(commit: String, repository: File, config: GitConfig, log: Logger): Unit = {
     if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
