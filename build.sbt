@@ -16,6 +16,7 @@
 
 name := "sbt-trickle"
 
+// TODO: define and settle on a terminology for "project that creates PR" and "project the PR is created for"
 // TODO: work on a command/alias that makes release work for me
 ThisBuild / baseVersion := "0.3"
 ThisBuild / organization := "com.dcsobral"

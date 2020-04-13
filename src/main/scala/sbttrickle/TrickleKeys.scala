@@ -37,6 +37,7 @@ trait TrickleKeys {
   val trickleCheckDependencies = inputKey[Unit]("Verifies that a dependency has the expected version")
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
   val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
+  val trickleUpdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of all dependencies that were updated in this repository")
   val trickleOutdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of updates available on this repository")
   val trickleUpdateDependencies = taskKey[Unit]("Updates all managed dependencies to the latest version")
   val trickleUpdateSessionDependencies = taskKey[StateTransform]("Updates all managed dependencies to the latest version")

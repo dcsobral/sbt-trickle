@@ -146,6 +146,16 @@ object TricklePlugin extends AutoPlugin {
     Autobump.checkSessionDependencies(project, dependencies, modules, log)
   }
 
+  lazy val trickleUpdatedDependenciesTask: Initialize[Task[Set[ModuleUpdateData]]] = Def.task {
+    val log = streams.value.log
+    val repository = trickleGitDbRepository.value
+    val sv = scalaBinaryVersion.value
+    val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
+    val repository = trickleRepositoryName.value
+    val metadata = GitDb.getBuildMetadata(repository, sv, config, log)
+    val topology = BuildTopology(metadata)
+  }
+
   lazy val trickleOutdatedDependenciesTask: Initialize[Task[Set[ModuleUpdateData]]] = Def.task {
     val buildTopology = trickleBuildTopology.value
     val repository = trickleRepositoryName.value
@@ -306,6 +316,7 @@ object TricklePlugin extends AutoPlugin {
       commits ++ tags
     }.getOrElse(Seq.empty)
 
-    token(Space ~> NotQuoted.examples(FixedSetExamples(suggestions)))
+    // FIXME: bugged?
+    token(Space) ~> token(NotQuoted.examples(FixedSetExamples(suggestions)))
   }
 }
