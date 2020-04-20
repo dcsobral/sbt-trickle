@@ -42,7 +42,9 @@ trait Autobump {
       if (intransitive) new Resolver(dependencyResolution, workDir, log).intransitive()
       else new Resolver(dependencyResolution, workDir, log)
     val (artifactsNotAvailable, artifactsAvailable) = outdatedRepositories.map { o =>
-      val available = o.updates.filter(updateInfo => lm.isArtifactAvailable(updateInfo.dependency))
+      val available = o.updates.filter { updateInfo =>
+        lm.isArtifactAvailable(updateInfo.dependency.withRevision(updateInfo.newRevision))
+      }
       o.copy(updates = available)
     }.partition(_.updates.isEmpty)
     artifactsNotAvailable.foreach { outdatedRepository =>
