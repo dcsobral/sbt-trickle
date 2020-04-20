@@ -36,16 +36,17 @@ trait TrickleKeys {
   val trickleIsUpToDate = taskKey[Unit]("Checks that trickle-managed dependencies are up-to-date")
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
   val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
-  val trickleUpdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of all dependencies that were updated in this repository")
-  val trickleOutdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of updates available on this repository")
+  val trickleOutdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of updates on this repository")
   val trickleUpdateDependencies = taskKey[Unit]("Updates all managed dependencies to the latest version")
   val trickleUpdateSessionDependencies = taskKey[StateTransform]("Updates all managed dependencies to the latest version")
 
   // Database
   val trickleBuildTopology = taskKey[BuildTopology]("Build topology")
+  val trickleSessionBuildTopology = taskKey[BuildTopology]("Build topology using session for self metadata")
   val trickleDbURI = settingKey[String]("Metadata database locator")
   val trickleDryMode = settingKey[Boolean]("Do not push updates or create pull requests if true")
   val trickleFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
+  val trickleSessionFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata, but use session for self metadata")
   val trickleUpdateSelf = taskKey[Unit]("Write metadata to database")
 
 
@@ -54,6 +55,7 @@ trait TrickleKeys {
   val trickleGitConfig = settingKey[GitConfig]("Provides configuration for the git tasks")
   val trickleGitDbRepository = taskKey[File]("Trickle db git repository")
   val trickleGitFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata")
+  val trickleGitSessionFetchDb = taskKey[Seq[RepositoryMetadata]]("Fetch all metadata, but use session for self metadata")
   val trickleGitReset = inputKey[Unit]("Checkout a specific commit in the trickle database")
   val trickleGitUpdateMessage = taskKey[String]("Commit message for metadata updates")
   val trickleGitUpdateSelf = taskKey[File]("Write metadata to database")
