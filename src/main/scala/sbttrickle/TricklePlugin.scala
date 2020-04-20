@@ -17,6 +17,7 @@
 package sbttrickle
 
 import scala.util.Try
+import scala.util.control.NonFatal
 
 import sbt.{Def, _}
 import sbt.Def.Initialize
@@ -51,6 +52,7 @@ object TricklePlugin extends AutoPlugin {
     trickleGitDbRepository := trickleGitDbRepositoryTask.value,
     trickleGitConfig / aggregate := false,
     trickleGitConfig := GitConfig(trickleDbURI.value).withBranch(trickleGitBranch.?.value),
+    trickleGitReset / aggregate := false,
     trickleGitReset := trickleGitResetTask.evaluated,
 
     // Other
@@ -248,7 +250,15 @@ object TricklePlugin extends AutoPlugin {
     val cache =  trickleCache.value
     val config = trickleGitConfig.value.withRemote(trickleDbURI.value).withDry(trickleDryMode.?.value)
     val log = streams.value.log
-    GitDb.reset(commit, cache, config, log)
+    val repository = GitDb.getRepository(cache, config, log)
+    val message = try {
+      GitDb.reset(commit, repository, config, log)
+    } catch {
+      case NonFatal(ex) =>
+        log.error(ex.getMessage)
+        throw ex
+    }
+    log.info(s"Metadata repository is now at '$message'")
   } tag (Tags.Network, GitLock)
 
   lazy val trickleSelfMetadataSetting: Initialize[RepositoryMetadata] = Def.setting {
@@ -327,6 +337,6 @@ object TricklePlugin extends AutoPlugin {
     }.getOrElse(Seq.empty)
 
     // FIXME: bugged?
-    token(Space) ~> token(NotQuoted.examples(FixedSetExamples(suggestions)))
+    token(Space ~> NotQuoted.examples(FixedSetExamples(suggestions)))
   }
 }

@@ -51,7 +51,7 @@ trait GitDb {
   private[git] def getStore(file: File): FileBasedStore[JValue] =
     new FileBasedStore(file, Converter)(IsoString.iso(PrettyPrinter.apply, Parser.parseUnsafe))
 
-  private val MetadataGitRepo = "metadataGitRepo"
+  val MetadataGitRepo = "metadataGitRepo"
 
   /** Create repository */
   def createRepository(base: File, config: GitConfig, log: Logger): File = {
@@ -61,6 +61,11 @@ trait GitDb {
     dir
   }
 
+  /** Repository directory given its parent */
+  def getRepositoryPath(base: File): File = {
+    base / MetadataGitRepo
+  }
+
   /**
    * Pull or clone remote repository.
    *
@@ -68,7 +73,7 @@ trait GitDb {
    * @return Repository directory
    */
   def getRepository(base: File, config: GitConfig, log: Logger): File = {
-    val dir = base / MetadataGitRepo
+    val dir = getRepositoryPath(base)
     IO.createDirectory(dir)
 
     if (!isValidRepository(dir)) {
@@ -180,11 +185,12 @@ trait GitDb {
    * @param commit sha-1 or reference (branches, tags and remotes), possibly abbreviated
    * @param repository Repository directory, as in the return value of [[#getRepository]]
    */
-  def reset(commit: String, repository: File, config: GitConfig, log: Logger): Unit = {
+  def reset(commit: String, repository: File, config: GitConfig, log: Logger): String = {
     if (isValidRepository(repository) && isConfigurationCorrect(repository, config, log)) {
       Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
         val sha1 = if (ObjectId.isId(commit)) commit else git.getRepository.findRef(commit).getObjectId.getName
         git.reset().setMode(ResetCommand.ResetType.HARD).setRef(sha1).call()
+        git.log().setMaxCount(1).call().asScala.head.getShortMessage
       }
     } else {
       sys.error(s"Invalid repository $repository")
@@ -244,7 +250,7 @@ trait GitDb {
   }
 
   /** Verifies that the repository is using the same branch and that the remote has the right URI.  */
-  private def isConfigurationCorrect(repository: File, config: GitConfig, log: Logger): Boolean = {
+  def isConfigurationCorrect(repository: File, config: GitConfig, log: Logger): Boolean = {
     Using.file(Git.open(_, FS.DETECTED))(repository) { git =>
       val localBranch = git.getRepository.getBranch
       val isBranchCorrect = localBranch == config.branch
@@ -257,7 +263,8 @@ trait GitDb {
     }
   }
 
-  private def isValidRepository(dir: File): Boolean = {
+  /** Checks whether a directory contains a valid repository */
+  def isValidRepository(dir: File): Boolean = {
     isRepository(dir) && wasClonedSuccessfully(dir)
   }
 
