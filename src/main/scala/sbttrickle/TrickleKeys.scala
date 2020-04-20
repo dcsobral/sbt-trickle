@@ -16,8 +16,6 @@
 
 package sbttrickle
 
-import github4s.domain.PullRequest
-
 import sbt._
 
 import sbttrickle.git.GitConfig
@@ -35,6 +33,7 @@ trait TrickleKeys {
   val trickleOutdatedRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories and the dependencies that need updating")
   val trickleUpdatableRepositories = taskKey[Seq[OutdatedRepository]]("Outdated repositories that can be bumped")
   val trickleCheckDependencies = inputKey[Unit]("Verifies that a dependency has the expected version")
+  val trickleIsUpToDate = taskKey[Unit]("Checks that trickle-managed dependencies are up-to-date")
   val trickleIntransitiveResolve = settingKey[Boolean]("If true, only check direct dependency availability")
   val trickleLogUpdatableRepositories = taskKey[Unit]("Log what needs to be updates")
   val trickleUpdatedDependencies = taskKey[Set[ModuleUpdateData]]("Set of all dependencies that were updated in this repository")
@@ -61,9 +60,6 @@ trait TrickleKeys {
   // TODO: create empty repo task
   // TODO: tag metadata commits
   // TODO: show metadata commits (messages, tags)
-
-  // Github Pull Requests
-  val trickleGithubIsAutobumpPullRequest = settingKey[PullRequest => Boolean]("Predicate for trickle-created PRs on Github")
 
   // Other
   // TODO: "outdated" topology dot graph tasks

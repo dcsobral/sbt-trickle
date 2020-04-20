@@ -16,8 +16,6 @@
 
 package sbttrickle
 
-import github4s.domain.PullRequest
-
 import scala.util.Try
 
 import sbt.{Def, _}
@@ -27,7 +25,6 @@ import sbt.complete.{DefaultParsers, FixedSetExamples, Parser}
 import sbt.plugins.JvmPlugin
 
 import sbttrickle.git._
-import sbttrickle.github.PullRequests
 import sbttrickle.metadata._
 
 object TricklePlugin extends AutoPlugin {
@@ -48,9 +45,6 @@ object TricklePlugin extends AutoPlugin {
     // Self
     trickleRepositoryName := trickleRepositoryNameSetting.value,
     trickleRepositoryURI := trickleRepositoryUriSetting.value,
-
-    // Auto bump
-    trickleGithubIsAutobumpPullRequest := ((_: PullRequest) => false),
 
     // Git Database
     trickleGitDbRepository / aggregate := false,
@@ -79,6 +73,8 @@ object TricklePlugin extends AutoPlugin {
     trickleCheckDependencies := trickleCheckDependenciesTask.evaluated,
     trickleCreatePullRequests / aggregate := false,
     trickleCreatePullRequests := trickleCreatePullRequestsTask.value,
+    trickleIsUpToDate / aggregate := false,
+    trickleIsUpToDate := trickleIsUpToDateTask.value,
     trickleLogUpdatableRepositories / aggregate := false,
     trickleLogUpdatableRepositories := trickleLogUpdatableRepositoriesTask.value,
     trickleOutdatedDependencies / aggregate := false,
@@ -94,7 +90,7 @@ object TricklePlugin extends AutoPlugin {
 
     // Database
     trickleBuildTopology / aggregate := false,
-    trickleBuildTopology := BuildTopology(trickleFetchDb.value), // TODO: cache
+    trickleBuildTopology := BuildTopology(trickleFetchDb.value),
     trickleFetchDb / aggregate := false,
     trickleFetchDb := trickleGitFetchDb.value,
     trickleUpdateSelf / aggregate := false,
@@ -137,6 +133,19 @@ object TricklePlugin extends AutoPlugin {
     val log = streams.value.log
     Autobump.getUpdatableRepositories(outdated, lm, intransitive, workDir, log)
   } tag (Tags.Update, Tags.Network)
+
+  lazy val trickleIsUpToDateTask: Initialize[Task[Unit]] = Def.task {
+    val log = streams.value.log
+    val outdatedDependencies = trickleOutdatedDependencies.value
+    if (outdatedDependencies.isEmpty) () else {
+      log.error("Outdated dependencies:")
+      outdatedDependencies.foreach {
+        case ModuleUpdateData(module, dependency, newRevision, repository, _) =>
+          log.error(s"[$module] $dependency -> $newRevision ($repository)")
+      }
+      sys.error(s"${outdatedDependencies.size} outdated dependencies found!")
+    }
+  }
 
   lazy val trickleCheckDependenciesTask: Initialize[InputTask[Unit]] = Def.inputTask {
     val log = streams.value.log
@@ -242,17 +251,6 @@ object TricklePlugin extends AutoPlugin {
   /** Helper required by sbt macros and ".all", on trickleSelfMetadataTask */
   lazy val projectWithDependencies: Initialize[ModuleMetadata] = Def.setting {
     ModuleMetadata(moduleName.value, projectID.value, libraryDependencies.value)
-  }
-
-  lazy val trickleIsPullRequestOpenSetting: Initialize[OutdatedRepository => Boolean] = Def.setting { outdatedRepository =>
-    val log = sLog.value
-    val repositoryURL = outdatedRepository.url
-    val isAutobumpPullRequest = trickleGithubIsAutobumpPullRequest.value
-    val token = trickleGitConfig.value
-      .copy(remote = repositoryURL)
-      .password
-      .getOrElse(sys.error(s"No github token available for $repositoryURL"))
-    PullRequests.isPullRequestInProgress(repositoryURL, token, isAutobumpPullRequest, log)
   }
 
   lazy val scmOrHomepageURL: Initialize[Option[URL]] = Def.setting {

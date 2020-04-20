@@ -224,10 +224,12 @@ object BuildTopology {
     def isOutdated(ie: graph.EdgeT): Boolean = ie.isLabeled && ie.label.toString.nonEmpty
 
     def transitiveEdgeStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      val _ = ie  // Silence warning -- these methods will be part of a trait
       Seq("weight" -> 0, "style" -> "dashed")
     }
 
     def directEdgeStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      val _ = ie
       Seq("weight" -> graph.maxDegree)
     }
 
@@ -236,6 +238,7 @@ object BuildTopology {
     }
 
     def upToDateStyle(ie: graph.EdgeT): Seq[DotAttr] = {
+      val _ = ie
       Seq.empty
     }
 

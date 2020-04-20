@@ -57,6 +57,5 @@ class Resolver private (lm: DependencyResolution, workDir: File, log: Logger, in
 
   private def transitivity(artifact: ModuleID): ModuleID =
     if (intransitive) artifact.intransitive() else artifact
-  // TODO: resolve exported artifacts on topology traversal, and discard the ones that haven't made their artifacts available yet
   // TODO: resolve multiple dependencies at once and return true if all available
 }

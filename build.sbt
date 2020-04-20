@@ -16,6 +16,10 @@
 
 name := "sbt-trickle"
 
+// TODO: CONTRIBUTING.md
+// TODO: automated build
+// TODO: sign tags/releases
+// TODO: release notes
 // TODO: define and settle on a terminology for "project that creates PR" and "project the PR is created for"
 // TODO: work on a command/alias that makes release work for me
 ThisBuild / baseVersion := "0.3"
@@ -24,6 +28,7 @@ ThisBuild / publishGithubUser := "dcsobral"
 ThisBuild / publishFullName := "Daniel Sobral"
 ThisBuild / bintrayVcsUrl := Some("git@github.com:dcsobral/sbt-trickle.git")
 ThisBuild / homepage := Some(url("https://github.com/dcsobral/sbt-trickle"))
+// TODO: apiURL
 
 sbtPlugin := true
 
@@ -36,6 +41,12 @@ libraryDependencies ++= Seq(
   "com.47deg" %% "github4s" % "0.22.0",
   "org.typelevel" %% "cats-effect" % "2.1.2",
 )
+
+scalacOptions ~= { options: Seq[String] =>
+  options.filterNot(Set(
+    "-Ywarn-value-discard" // It's annoying to get rid of it on Scala 2.12
+  ))
+}
 
 initialCommands +=
   """

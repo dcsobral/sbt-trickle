@@ -31,8 +31,6 @@ import scala.language.higherKinds
 import scala.util.Try
 import scala.util.matching.Regex
 
-import sbt.Logger
-
 import sbttrickle.git.OwnerAndRepository
 
 object PullRequests {
@@ -42,8 +40,7 @@ object PullRequests {
 
   def isPullRequestInProgress(repositoryURL: String,
                               token: String,
-                              isAutobumpPullRequest: PullRequest => Boolean,
-                              log: Logger): Boolean = {
+                              isAutobumpPullRequest: PullRequest => Boolean): Boolean = {
     val result = for {
       (owner, repo) <- ownerAndRepository(repositoryURL)
       pullRequests <- listPullRequests(token, owner, repo)
