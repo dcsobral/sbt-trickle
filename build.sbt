@@ -48,39 +48,3 @@ scalacOptions ~= { options: Seq[String] =>
   ))
 }
 
-initialCommands +=
-  """
-    |import java.io.File
-    |import org.eclipse.jgit
-    |import org.eclipse.jgit.api._
-    |import org.eclipse.jgit.lib._
-    |import org.eclipse.jgit.util._
-    |import org.eclipse.jgit.transport._
-    |import org.apache.logging.log4j._
-    |import org.apache.logging.log4j.core._
-    |import org.apache.logging.log4j.core.layout._
-    |import org.apache.logging.log4j.core.appender._
-    |import com.jcraft.jsch._
-    |import scalax.collection.Graph
-    |import scalax.collection.GraphPredef._
-    |import scalax.collection.edge.Implicits._
-    |import scalax.collection.edge.LBase.LEdgeImplicits
-    |import scalax.collection.edge.LkDiEdge
-    |import cats.effect.{ContextShift, IO}
-    |import cats.effect.IO.contextShift
-    |import github4s._
-    |import github4s.domain._
-    |import github4s.GithubResponses._
-    |import sbt.{ModuleID => _, _}
-    |import sbt.Def.Initialize
-    |import sbt.Keys._
-    |import sbt.librarymanagement._
-    |import sbt.util._
-    |import sjsonnew._
-    |import sjsonnew.support.scalajson.unsafe._
-    |import sjsonnew.shaded.scalajson.ast.unsafe._
-    |import scala.collection.JavaConverters._
-    |import sbttrickle._
-    |import sbttrickle.git._
-    |import sbttrickle.metadata._
-    |""".stripMargin
