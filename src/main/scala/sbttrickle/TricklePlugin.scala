@@ -164,7 +164,7 @@ object TricklePlugin extends AutoPlugin {
   }
 
   lazy val trickleOutdatedDependenciesTask: Initialize[Task[Set[ModuleUpdateData]]] = Def.task {
-    val buildTopology = trickleBuildTopology.value
+    val buildTopology = trickleSessionBuildTopology.value
     val self = trickleRepositoryName.value
     val updates = buildTopology.updates(self)
     updates
