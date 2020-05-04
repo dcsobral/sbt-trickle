@@ -200,7 +200,10 @@ trait GitDb {
   private def pullRemote(git: Git, log: Logger)(implicit config: GitConfig): Unit = {
     if (!config.options(DontPull)) {
       val pullResult = git.pull().setFastForward(MergeCommand.FastForwardMode.FF_ONLY).configureAuthentication().call()
-      if (!pullResult.isSuccessful) {
+      if (pullResult.isSuccessful) {
+        val head = git.getRepository.findRef("HEAD").getObjectId.getName
+        log.info(s"Fetched metadata repository. ${config.branch} is now at $head")
+      } else {
         val messages = getPullErrorMessages(git, pullResult)
         git.rebase().setOperation(RebaseCommand.Operation.ABORT).call()
         sys.error(s"Unable to sync with remote: $messages")
